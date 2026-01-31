@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sky Survey Coverage Explorer (Dev)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Sky Coverage Explorer</h1>
+          <p>Dev build for survey MOC visualization</p>
+        </div>
+
+        <section class="section">
+          <h2>Surveys</h2>
+          <div class="survey-list" id="survey-list"></div>
+        </section>
+
+        <section class="section">
+          <h2>Coverage</h2>
+          <div class="stats" id="coverage-stats">
+            <div class="stat-card">
+              <strong id="selected-count">0</strong>
+              <span>Surveys selected</span>
+            </div>
+            <div class="stat-card">
+              <strong id="intersection-area">--</strong>
+              <span>Intersection area (sq deg)</span>
+            </div>
+          </div>
+          <div class="log" id="coverage-log"></div>
+        </section>
+
+        <section class="section">
+          <h2>Actions</h2>
+          <div class="actions">
+            <button class="button" id="download-button" disabled>
+              Download Intersection MOC
+            </button>
+            <button class="button secondary" id="reset-button">Reset</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Status</h2>
+          <div class="status-pill" id="moc-status">MOC engine: checking</div>
+        </section>
+      </aside>
+
+      <main class="map-panel">
+        <div class="topbar">
+          <strong>Aladin Lite V3</strong>
+          <span id="map-status">Ready</span>
+        </div>
+        <div id="aladin-lite-div"></div>
+      </main>
+    </div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
