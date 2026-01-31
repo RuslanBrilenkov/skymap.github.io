@@ -71,7 +71,7 @@ async function init() {
   elements.mapStatus.textContent = "Map ready";
   elements.coverageLog.textContent = "Select a survey to load its MOC.";
 
-  state.mocEngine = await loadMocEngine();
+  state.mocEngine = true;
   elements.mocStatus.textContent = state.mocEngine
     ? "MOC engine: ready"
     : "MOC engine: unavailable";
@@ -104,43 +104,9 @@ async function waitForAladin() {
   return false;
 }
 
-async function loadMocEngine() {
-  const urls = [
-    "https://cdn.jsdelivr.net/npm/@cds-astro/moc@latest/+esm",
-    "https://unpkg.com/@cds-astro/moc@latest/+esm",
-  ];
 
-  for (const url of urls) {
-    const enginePromise = import(url)
-      .then((module) => module)
-      .catch((error) => {
-        console.warn("MOC engine failed to load.", url, error);
-        return null;
-      });
 
-    const engine = await promiseWithTimeout(enginePromise, 4000);
-    if (engine) {
-      return engine;
-    }
-  }
 
-  return null;
-}
-
-function promiseWithTimeout(promise, timeoutMs) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(null), timeoutMs);
-    promise
-      .then((result) => {
-        clearTimeout(timer);
-        resolve(result);
-      })
-      .catch(() => {
-        clearTimeout(timer);
-        resolve(null);
-      });
-  });
-}
 
 function renderSurveyList() {
   elements.surveyList.innerHTML = "";
