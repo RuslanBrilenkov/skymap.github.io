@@ -12,7 +12,7 @@ const SURVEYS = [
   },
 ];
 
-const state = {``
+const state = {
   aladin: null,
   aladinLibrary: null,
   layers: new Map(),
