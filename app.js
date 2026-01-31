@@ -38,8 +38,9 @@ async function init() {
   renderSurveyList();
   logStatus("Survey list ready.");
 
-  const aladinLibrary = await loadAladinModule();
-  if (!aladinLibrary?.aladin) {
+  // Wait for Aladin Lite to be available
+  const aladinLibrary = await waitForAladin();
+  if (!aladinLibrary) {
     elements.coverageLog.textContent =
       "Failed to load Aladin Lite. Check network access or retry.";
     elements.mapStatus.textContent = "Error";
@@ -47,11 +48,18 @@ async function init() {
   }
 
   state.aladinLibrary = aladinLibrary;
-  state.aladin = aladinLibrary.aladin("#aladin-lite-div", {
-    survey: "P/DSS2/color",
-    fov: 180,
-    target: "0 +0",
-  });
+  try {
+    state.aladin = aladinLibrary.aladin("#aladin-lite-div", {
+      survey: "P/DSS2/color",
+      fov: 180,
+      target: "0 +0",
+    });
+  } catch (error) {
+    console.error("Failed to initialize Aladin:", error);
+    elements.coverageLog.textContent = `Failed to initialize Aladin: ${error.message}`;
+    elements.mapStatus.textContent = "Error";
+    return;
+  }
 
   elements.mapStatus.textContent = "Map ready";
   elements.coverageLog.textContent = "Select a survey to load its MOC.";
@@ -70,26 +78,20 @@ async function init() {
   elements.downloadButton.addEventListener("click", handleDownload);
 }
 
-async function loadAladinModule() {
-  const urls = [
-    "https://cdn.jsdelivr.net/npm/aladin-lite@3.6.5/+esm",
-    "https://unpkg.com/aladin-lite@3.6.5/+esm",
-  ];
+async function waitForAladin() {
+  // Wait for the global A object to be available
+  const maxAttempts = 50;
+  const delayMs = 100;
 
-  for (const url of urls) {
-    const esmPromise = import(url)
-      .then((module) => module?.default || module || null)
-      .catch((error) => {
-        console.warn("Aladin ESM import failed.", url, error);
-        return null;
-      });
-
-    const esmResult = await promiseWithTimeout(esmPromise, 4000);
-    if (esmResult) {
-      return esmResult;
+  for (let i = 0; i < maxAttempts; i++) {
+    if (typeof window.A !== 'undefined' && window.A.aladin) {
+      console.log("Aladin Lite loaded successfully");
+      return window.A;
     }
+    await new Promise(resolve => setTimeout(resolve, delayMs));
   }
 
+  console.error("Aladin Lite failed to load after", maxAttempts * delayMs, "ms");
   return null;
 }
 
@@ -173,12 +175,11 @@ function handleSurveyToggle(survey, isChecked) {
         "Aladin is not ready yet. Please wait and retry.";
     } else {
       try {
-        const mocFactory =
-          state.aladinLibrary?.MOCFromURL || window.A?.MOCFromURL;
-        if (!mocFactory) {
+        const A = state.aladinLibrary || window.A;
+        if (!A || !A.MOCFromURL) {
           throw new Error("MOCFromURL is unavailable.");
         }
-        const mocLayer = mocFactory(survey.mocUrl, {
+        const mocLayer = A.MOCFromURL(survey.mocUrl, {
           color: survey.color,
           opacity: survey.opacity,
           lineWidth: 1,
