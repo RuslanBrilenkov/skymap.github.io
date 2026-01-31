@@ -1,3 +1,5 @@
+// Version 1.1.0 - Fixed MOC removal using removeLayers()
+const VERSION = "1.1.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
@@ -71,8 +73,9 @@ async function init() {
 
   elements.mapStatus.textContent = "Map ready";
   elements.coverageLog.textContent = "Select a survey to load its MOC.";
-  elements.mocStatus.textContent = "MOC engine: ready (pre-calculated areas)";
+  elements.mocStatus.textContent = `MOC engine: ready (v${VERSION})`;
   logStatus("Application ready.");
+  console.log(`Sky Coverage Explorer v${VERSION} initialized`);
 
   updateStats();
 
