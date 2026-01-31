@@ -12,7 +12,7 @@ const SURVEYS = [
   },
 ];
 
-const state = {
+const state = {``
   aladin: null,
   aladinLibrary: null,
   layers: new Map(),
@@ -36,17 +36,18 @@ init();
 async function init() {
   elements.coverageLog.textContent = "Initializing Aladin Lite…";
   renderSurveyList();
+  logStatus("Survey list ready.");
 
-  const aladinModule = await loadAladinModule();
-  if (!aladinModule) {
+  const aladinLibrary = await loadAladinModule();
+  if (!aladinLibrary?.aladin) {
     elements.coverageLog.textContent =
       "Failed to load Aladin Lite. Check network access or retry.";
     elements.mapStatus.textContent = "Error";
     return;
   }
 
-  state.aladinLibrary = aladinModule;
-  state.aladin = aladinModule.aladin("#aladin-lite-div", {
+  state.aladinLibrary = aladinLibrary;
+  state.aladin = aladinLibrary.aladin("#aladin-lite-div", {
     survey: "P/DSS2/color",
     fov: 180,
     target: "0 +0",
@@ -59,6 +60,9 @@ async function init() {
   elements.mocStatus.textContent = state.mocEngine
     ? "MOC engine: ready"
     : "MOC engine: unavailable";
+  logStatus(
+    state.mocEngine ? "MOC engine loaded." : "MOC engine unavailable."
+  );
 
   updateStats();
 
@@ -67,56 +71,49 @@ async function init() {
 }
 
 async function loadAladinModule() {
-  const esmPromise = import(
-    "https://cdn.jsdelivr.net/npm/aladin-lite@3.6.5/+esm"
-  )
-    .then((module) => module?.default || null)
-    .catch((error) => {
-      console.warn("ESM import failed, falling back to global A.", error);
-      return null;
-    });
+  const urls = [
+    "https://cdn.jsdelivr.net/npm/aladin-lite@3.6.5/+esm",
+    "https://unpkg.com/aladin-lite@3.6.5/+esm",
+  ];
 
-  const esmResult = await promiseWithTimeout(esmPromise, 4000);
-  if (esmResult) {
-    return esmResult;
+  for (const url of urls) {
+    const esmPromise = import(url)
+      .then((module) => module?.default || module || null)
+      .catch((error) => {
+        console.warn("Aladin ESM import failed.", url, error);
+        return null;
+      });
+
+    const esmResult = await promiseWithTimeout(esmPromise, 4000);
+    if (esmResult) {
+      return esmResult;
+    }
   }
 
-  return waitForGlobalA(4000);
+  return null;
 }
 
 async function loadMocEngine() {
-  const enginePromise = import(
-    "https://cdn.jsdelivr.net/npm/@cds-astro/moc@latest/+esm"
-  )
-    .then((module) => module)
-    .catch((error) => {
-      console.warn("MOC engine failed to load.", error);
-      return null;
-    });
+  const urls = [
+    "https://cdn.jsdelivr.net/npm/@cds-astro/moc@latest/+esm",
+    "https://unpkg.com/@cds-astro/moc@latest/+esm",
+  ];
 
-  return promiseWithTimeout(enginePromise, 4000);
-}
+  for (const url of urls) {
+    const enginePromise = import(url)
+      .then((module) => module)
+      .catch((error) => {
+        console.warn("MOC engine failed to load.", url, error);
+        return null;
+      });
 
-function waitForGlobalA(timeoutMs) {
-  if (window.A) {
-    return Promise.resolve(window.A);
+    const engine = await promiseWithTimeout(enginePromise, 4000);
+    if (engine) {
+      return engine;
+    }
   }
 
-  return new Promise((resolve) => {
-    const startTime = Date.now();
-    const timer = setInterval(() => {
-      if (window.A) {
-        clearInterval(timer);
-        resolve(window.A);
-        return;
-      }
-
-      if (Date.now() - startTime >= timeoutMs) {
-        clearInterval(timer);
-        resolve(null);
-      }
-    }, 100);
-  });
+  return null;
 }
 
 function promiseWithTimeout(promise, timeoutMs) {
@@ -166,6 +163,9 @@ function renderSurveyList() {
 }
 
 function handleSurveyToggle(survey, isChecked) {
+  logStatus(
+    `${survey.label} ${isChecked ? "selected" : "deselected"}.`
+  );
   if (isChecked) {
     state.selected.add(survey.id);
     if (!state.aladin) {
@@ -209,6 +209,9 @@ function handleSurveyToggle(survey, isChecked) {
 }
 
 function updateStats() {
+  if (!elements.selectedCount) {
+    return;
+  }
   elements.selectedCount.textContent = String(state.selected.size);
 
   if (!state.mocEngine) {
@@ -248,4 +251,12 @@ function resetSelections() {
 function handleDownload() {
   elements.coverageLog.textContent =
     "Intersection download will be available once MOC engine is wired.";
+}
+
+function logStatus(message) {
+  if (!elements.coverageLog) {
+    return;
+  }
+  const timestamp = new Date().toLocaleTimeString();
+  elements.coverageLog.textContent = `[${timestamp}] ${message}`;
 }
