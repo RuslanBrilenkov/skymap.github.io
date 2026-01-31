@@ -166,21 +166,33 @@ function renderSurveyList() {
 }
 
 function handleSurveyToggle(survey, isChecked) {
-  if (!state.aladin) {
-    return;
-  }
-
   if (isChecked) {
     state.selected.add(survey.id);
-    const mocLayer = state.aladinLibrary.MOCFromURL(survey.mocUrl, {
-      color: survey.color,
-      opacity: survey.opacity,
-      lineWidth: 1,
-    });
+    if (!state.aladin) {
+      elements.coverageLog.textContent =
+        "Aladin is not ready yet. Please wait and retry.";
+    } else {
+      try {
+        const mocFactory =
+          state.aladinLibrary?.MOCFromURL || window.A?.MOCFromURL;
+        if (!mocFactory) {
+          throw new Error("MOCFromURL is unavailable.");
+        }
+        const mocLayer = mocFactory(survey.mocUrl, {
+          color: survey.color,
+          opacity: survey.opacity,
+          lineWidth: 1,
+        });
 
-    state.aladin.addMOC(mocLayer);
-    state.layers.set(survey.id, mocLayer);
-    elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
+        state.aladin.addMOC(mocLayer);
+        state.layers.set(survey.id, mocLayer);
+        elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
+      } catch (error) {
+        console.error("Failed to load MOC layer.", error);
+        elements.coverageLog.textContent =
+          "Failed to load MOC layer. Check console for details.";
+      }
+    }
   } else {
     state.selected.delete(survey.id);
     const layer = state.layers.get(survey.id);
