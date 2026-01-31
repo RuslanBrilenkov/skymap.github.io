@@ -1,4 +1,5 @@
-const BASE_MOC_URL = "https://ruslanbrilenkov.github.io/surveys/";
+const BASE_MOC_URL =
+  "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
 const SURVEYS = [
   {
