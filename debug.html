@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aladin MOC Debug</title>
+    <link rel="stylesheet" href="https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.css" />
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js"></script>
+    <script type="text/javascript" src="https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.js"></script>
+    <style>
+        #aladin-lite-div { width: 800px; height: 600px; }
+        button { margin: 10px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Aladin MOC Debug Test</h1>
+    <div id="controls">
+        <button onclick="addMOC()">Add MOC</button>
+        <button onclick="removeMOC()">Remove MOC</button>
+        <button onclick="checkState()">Check State</button>
+    </div>
+    <div id="aladin-lite-div"></div>
+    <div id="output"></div>
+
+    <script>
+        let aladin;
+        let mocLayer;
+        const output = document.getElementById('output');
+
+        function log(msg) {
+            console.log(msg);
+            output.innerHTML += '<p>' + msg + '</p>';
+        }
+
+        // Wait for Aladin to load
+        setTimeout(() => {
+            aladin = A.aladin('#aladin-lite-div', {
+                survey: "P/DSS2/color",
+                fov: 60,
+                target: "0 +0"
+            });
+            log('Aladin initialized');
+        }, 500);
+
+        function addMOC() {
+            if (!aladin) {
+                log('ERROR: Aladin not ready');
+                return;
+            }
+
+            try {
+                mocLayer = A.MOCFromURL('surveys/euclid_dr1_coverage_moc.fits', {
+                    color: '#7de7c6',
+                    opacity: 0.45,
+                    lineWidth: 2
+                });
+
+                aladin.addMOC(mocLayer);
+                log('MOC added: ' + mocLayer);
+                log('MOC object type: ' + typeof mocLayer);
+                log('MOC properties: ' + Object.keys(mocLayer).join(', '));
+            } catch (error) {
+                log('ERROR adding MOC: ' + error.message);
+            }
+        }
+
+        function removeMOC() {
+            if (!aladin || !mocLayer) {
+                log('ERROR: Aladin or MOC not ready');
+                return;
+            }
+
+            try {
+                // Try different removal methods
+                log('Attempting removal...');
+
+                // Method 1: removeMOC
+                if (typeof aladin.removeMOC === 'function') {
+                    aladin.removeMOC(mocLayer);
+                    log('Called removeMOC(mocLayer)');
+                } else {
+                    log('WARNING: removeMOC function not found');
+                }
+
+                // Method 2: Check for other removal methods
+                log('Available aladin methods: ' + Object.keys(aladin).filter(k => k.includes('remove') || k.includes('clear') || k.includes('MOC')).join(', '));
+
+            } catch (error) {
+                log('ERROR removing MOC: ' + error.message);
+            }
+        }
+
+        function checkState() {
+            if (!aladin) {
+                log('Aladin not initialized');
+                return;
+            }
+
+            log('Aladin object methods: ' + Object.keys(aladin).filter(k => typeof aladin[k] === 'function').join(', '));
+        }
+    </script>
+</body>
+</html>

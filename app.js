@@ -138,69 +138,74 @@ function handleSurveyToggle(survey, isChecked) {
 
   if (isChecked) {
     state.selected.add(survey.id);
-    if (!state.aladin) {
-      elements.coverageLog.textContent =
-        "Aladin is not ready yet. Please wait and retry.";
-      return;
-    }
-
-    try {
-      const A = window.A;
-      if (!A || !A.MOCFromURL) {
-        throw new Error("MOCFromURL is unavailable.");
-      }
-
-      // Aladin Lite v2 MOC loading for visualization
-      const mocLayer = A.MOCFromURL(survey.mocUrl, {
-        color: survey.color,
-        opacity: survey.opacity,
-        lineWidth: 2,
-        adaptativeDisplay: false,
-      });
-
-      state.aladin.addMOC(mocLayer);
-      state.layers.set(survey.id, mocLayer);
-      elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
-    } catch (error) {
-      console.error("Failed to load MOC layer.", error);
-      elements.coverageLog.textContent =
-        "Failed to load MOC layer. Check console for details.";
-      state.selected.delete(survey.id);
-    }
+    elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
   } else {
     // Remove survey from selection
     state.selected.delete(survey.id);
-    const layer = state.layers.get(survey.id);
-
-    if (layer && state.aladin) {
-      try {
-        // Remove the MOC from the map
-        state.aladin.removeMOC(layer);
-        console.log(`Removed MOC layer for ${survey.id}`);
-      } catch (error) {
-        console.error("Error removing MOC:", error);
-      }
-      state.layers.delete(survey.id);
-    }
-
     elements.coverageLog.textContent = `Removed ${survey.label} coverage.`;
   }
 
+  // Refresh all MOC layers
+  refreshMOCLayers();
   updateStats();
+}
+
+function refreshMOCLayers() {
+  if (!state.aladin) {
+    console.warn("Aladin not ready");
+    return;
+  }
+
+  try {
+    const A = window.A;
+    if (!A || !A.MOCFromURL) {
+      throw new Error("MOCFromURL is unavailable.");
+    }
+
+    // Remove all existing layers (Aladin v2 limitation)
+    state.aladin.removeLayers();
+    state.layers.clear();
+
+    console.log(`Refreshing MOCs. Selected surveys: ${Array.from(state.selected).join(', ')}`);
+
+    // Re-add MOCs for all selected surveys
+    state.selected.forEach(surveyId => {
+      const survey = SURVEYS.find(s => s.id === surveyId);
+      if (survey) {
+        const mocLayer = A.MOCFromURL(survey.mocUrl, {
+          color: survey.color,
+          opacity: survey.opacity,
+          lineWidth: 2,
+          adaptativeDisplay: false,
+        });
+
+        state.aladin.addMOC(mocLayer);
+        state.layers.set(survey.id, mocLayer);
+        console.log(`Re-added MOC for ${survey.id}`);
+      }
+    });
+  } catch (error) {
+    console.error("Failed to refresh MOC layers:", error);
+    elements.coverageLog.textContent = "Failed to refresh MOC layers. Check console.";
+  }
 }
 
 function updateStats() {
   if (!elements.selectedCount) {
+    console.error("selectedCount element not found!");
     return;
   }
 
-  elements.selectedCount.textContent = String(state.selected.size);
-
   const selectedCount = state.selected.size;
+  elements.selectedCount.textContent = String(selectedCount);
+
+  console.log(`updateStats called. Selected count: ${selectedCount}`);
+  console.log(`Selected surveys: ${Array.from(state.selected).join(', ')}`);
 
   if (selectedCount === 0) {
     elements.intersectionArea.textContent = "--";
     elements.downloadButton.disabled = true;
+    console.log("Area set to '--' (no selections)");
     return;
   }
 
@@ -209,10 +214,16 @@ function updateStats() {
     const surveyId = Array.from(state.selected)[0];
     const survey = SURVEYS.find(s => s.id === surveyId);
 
+    console.log(`Found survey: ${survey ? survey.label : 'not found'}`);
+    console.log(`Survey area: ${survey ? survey.areaSqDeg : 'N/A'}`);
+
     if (survey && survey.areaSqDeg) {
-      elements.intersectionArea.textContent = survey.areaSqDeg.toFixed(2);
+      const areaText = survey.areaSqDeg.toFixed(2);
+      elements.intersectionArea.textContent = areaText;
+      console.log(`Area set to: ${areaText}`);
     } else {
       elements.intersectionArea.textContent = "--";
+      console.log("Area set to '--' (survey not found or no area)");
     }
     elements.downloadButton.disabled = true;
     return;
@@ -221,6 +232,7 @@ function updateStats() {
   // For 2+ surveys, show "pending" until we implement intersection calculation
   elements.intersectionArea.textContent = "pending";
   elements.downloadButton.disabled = false;
+  console.log("Area set to 'pending' (multiple surveys)");
 }
 
 function resetSelections() {
@@ -232,24 +244,21 @@ function resetSelections() {
     checkbox.checked = false;
   });
 
-  // Remove all MOC layers from the map
-  if (state.aladin) {
-    // Convert to array to avoid issues with modifying map during iteration
-    const layersArray = Array.from(state.layers.entries());
+  // Clear selections first
+  state.selected.clear();
 
-    for (const [id, layer] of layersArray) {
-      try {
-        state.aladin.removeMOC(layer);
-        console.log(`Removed MOC layer for ${id} during reset`);
-      } catch (error) {
-        console.error(`Error removing MOC for ${id}:`, error);
-      }
+  // Remove all MOC layers from the map using removeLayers()
+  if (state.aladin) {
+    try {
+      state.aladin.removeLayers();
+      console.log("Removed all layers");
+    } catch (error) {
+      console.error("Error removing layers:", error);
     }
   }
 
-  // Clear all state
+  // Clear layer state
   state.layers.clear();
-  state.selected.clear();
 
   updateStats();
   elements.coverageLog.textContent = "Selections cleared.";
