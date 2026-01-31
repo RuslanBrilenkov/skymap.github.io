@@ -11,7 +11,10 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
-    <script src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js" charset="utf-8"></script>
+    <!-- Aladin Lite v2 (stable) -->
+    <link rel="stylesheet" href="https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.css" />
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -59,10 +62,10 @@
 
       <main class="map-panel">
         <div class="topbar">
-          <strong>Aladin Lite V3</strong>
+          <strong>Aladin Lite V2</strong>
           <span id="map-status">Ready</span>
         </div>
-        <div id="aladin-lite-div"></div>
+        <div id="aladin-lite-div" style="width: 100%; height: calc(100% - 40px);"></div>
       </main>
     </div>
 

@@ -38,22 +38,29 @@ async function init() {
   renderSurveyList();
   logStatus("Survey list ready.");
 
-  // Wait for Aladin Lite to be available
-  const aladinLibrary = await waitForAladin();
-  if (!aladinLibrary) {
+  // Wait for Aladin Lite v2 to be available
+  const aladinReady = await waitForAladin();
+  if (!aladinReady) {
     elements.coverageLog.textContent =
       "Failed to load Aladin Lite. Check network access or retry.";
     elements.mapStatus.textContent = "Error";
     return;
   }
 
-  state.aladinLibrary = aladinLibrary;
   try {
-    state.aladin = aladinLibrary.aladin("#aladin-lite-div", {
+    // Aladin Lite v2 initialization
+    state.aladin = window.A.aladin("#aladin-lite-div", {
       survey: "P/DSS2/color",
       fov: 180,
       target: "0 +0",
+      showReticle: true,
+      showZoomControl: true,
+      showFullscreenControl: true,
+      showLayersControl: true,
+      showGotoControl: true,
     });
+
+    state.aladinLibrary = window.A;
   } catch (error) {
     console.error("Failed to initialize Aladin:", error);
     elements.coverageLog.textContent = `Failed to initialize Aladin: ${error.message}`;
@@ -79,20 +86,22 @@ async function init() {
 }
 
 async function waitForAladin() {
-  // Wait for the global A object to be available
+  // Wait for jQuery and Aladin Lite v2 to be available
   const maxAttempts = 50;
   const delayMs = 100;
 
   for (let i = 0; i < maxAttempts; i++) {
-    if (typeof window.A !== 'undefined' && window.A.aladin) {
-      console.log("Aladin Lite loaded successfully");
-      return window.A;
+    if (typeof window.A !== 'undefined' &&
+        typeof window.A.aladin === 'function' &&
+        typeof jQuery !== 'undefined') {
+      console.log("Aladin Lite v2 loaded successfully");
+      return true;
     }
     await new Promise(resolve => setTimeout(resolve, delayMs));
   }
 
   console.error("Aladin Lite failed to load after", maxAttempts * delayMs, "ms");
-  return null;
+  return false;
 }
 
 async function loadMocEngine() {
@@ -175,14 +184,17 @@ function handleSurveyToggle(survey, isChecked) {
         "Aladin is not ready yet. Please wait and retry.";
     } else {
       try {
-        const A = state.aladinLibrary || window.A;
+        const A = window.A;
         if (!A || !A.MOCFromURL) {
           throw new Error("MOCFromURL is unavailable.");
         }
+
+        // Aladin Lite v2 MOC loading
         const mocLayer = A.MOCFromURL(survey.mocUrl, {
           color: survey.color,
           opacity: survey.opacity,
-          lineWidth: 1,
+          lineWidth: 2,
+          adaptativeDisplay: false,
         });
 
         state.aladin.addMOC(mocLayer);
