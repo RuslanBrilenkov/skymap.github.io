@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOC Library Test</title>
+</head>
+<body>
+    <h1>MOC Library Test</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+
+        async function testMOC() {
+            try {
+                output.innerHTML += '<p>Loading MOC library...</p>';
+
+                const MOCModule = await import("https://cdn.jsdelivr.net/npm/@cds-astro/moc@3/dist/moc.js");
+
+                output.innerHTML += '<p>MOC module imported</p>';
+
+                // Wait for WASM initialization
+                await MOCModule.default;
+
+                output.innerHTML += '<p>WASM initialized</p>';
+
+                // Fetch the Euclid MOC file
+                const response = await fetch('surveys/euclid_dr1_coverage_moc.fits');
+                const arrayBuffer = await response.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+
+                output.innerHTML += '<p>MOC file fetched</p>';
+
+                // Parse the MOC
+                const moc = MOCModule.MOC.fromFITS(uint8Array);
+
+                output.innerHTML += '<p>MOC parsed successfully</p>';
+
+                // Calculate area
+                const skyFraction = moc.skyFraction();
+                const areaSqDeg = skyFraction * 41252.96;
+
+                output.innerHTML += `<p><strong>Sky Fraction:</strong> ${skyFraction.toFixed(6)}</p>`;
+                output.innerHTML += `<p><strong>Area:</strong> ${areaSqDeg.toFixed(2)} sq deg</p>`;
+
+            } catch (error) {
+                output.innerHTML += `<p style="color: red;"><strong>Error:</strong> ${error.message}</p>`;
+                console.error('Full error:', error);
+            }
+        }
+
+        testMOC();
+    </script>
+</body>
+</html>
