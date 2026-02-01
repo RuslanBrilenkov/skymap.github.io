@@ -1,5 +1,5 @@
-// Version 1.8.2 - Optional persistence toggle
-const VERSION = "1.8.2";
+// Version 1.9.0 - Per-survey loading toast
+const VERSION = "1.9.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -89,6 +89,7 @@ const elements = {
   surveyToggle: document.getElementById("survey-toggle"),
   surveyPanel: document.getElementById("survey-panel"),
   persistToggle: document.getElementById("persist-toggle"),
+  toastStack: document.getElementById("toast-stack"),
 };
 
 init();
@@ -356,6 +357,7 @@ function handleSurveyToggle(survey, isChecked) {
   );
 
   if (isChecked) {
+    showToast(`Loading ${survey.label}…`, "loading", survey.id);
     state.selected.add(survey.id);
     elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
     if (state.selected.size === 1) {
@@ -371,6 +373,7 @@ function handleSurveyToggle(survey, isChecked) {
     if (!removed) {
       scheduleRefreshMOCLayers();
     }
+    showToast(`Removed ${survey.label}`, "success", survey.id, 1200);
   }
 
   updateStats();
@@ -397,9 +400,11 @@ function addSurveyLayer(survey) {
     state.aladin.addMOC(mocLayer);
     state.layers.set(survey.id, mocLayer);
     console.log(`Added MOC for ${survey.id}`);
+    showToast(`Loaded ${survey.label}`, "success", survey.id, 1400);
   } catch (error) {
     console.error("Failed to add MOC layer:", error);
     scheduleRefreshMOCLayers();
+    showToast(`Failed to load ${survey.label}`, "error", survey.id, 2000);
   }
 }
 
@@ -519,6 +524,7 @@ function refreshMOCLayers() {
       if (!state.selected.has(survey.id)) {
         return;
       }
+      showToast(`Loading ${survey.label}…`, "loading", survey.id);
       const mocLayer = A.MOCFromURL(survey.mocUrl, {
         color: survey.color,
         opacity: survey.opacity,
@@ -529,11 +535,13 @@ function refreshMOCLayers() {
       state.aladin.addMOC(mocLayer);
       state.layers.set(survey.id, mocLayer);
       console.log(`Re-added MOC for ${survey.id}`);
+      showToast(`Loaded ${survey.label}`, "success", survey.id, 1200);
     });
     forceAladinRedraw();
   } catch (error) {
     console.error("Failed to refresh MOC layers:", error);
     elements.coverageLog.textContent = "Failed to refresh MOC layers. Check console.";
+    showToast("Failed to refresh MOC layers", "error", "refresh", 2000);
   }
 }
 
@@ -702,6 +710,33 @@ function resetSelections() {
   elements.coverageLog.textContent = "Selections cleared.";
   logStatus("All selections cleared.");
   persistSettings();
+  showToast("Cleared all surveys", "success", "reset", 1400);
+}
+
+function showToast(message, type, id, duration = 2000) {
+  if (!elements.toastStack) {
+    return;
+  }
+  const toastId = `${id || "toast"}-${Date.now()}`;
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  if (type === "error") {
+    toast.classList.add("is-error");
+  }
+  toast.textContent = message;
+  toast.dataset.toastId = toastId;
+
+  elements.toastStack.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.classList.add("is-visible");
+  });
+
+  window.setTimeout(() => {
+    toast.classList.remove("is-visible");
+    window.setTimeout(() => {
+      toast.remove();
+    }, 200);
+  }, duration);
 }
 
 function persistSettings() {
