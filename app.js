@@ -1,5 +1,5 @@
-// Version 1.6.0 - Added drag-and-drop survey ordering
-const VERSION = "1.6.0";
+// Version 1.7.0 - Added Fit-to-survey button
+const VERSION = "1.7.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -77,6 +77,7 @@ const elements = {
   mocStatus: document.getElementById("moc-status"),
   mapStatus: document.getElementById("map-status"),
   downloadButton: document.getElementById("download-button"),
+  fitButton: document.getElementById("fit-button"),
   resetButton: document.getElementById("reset-button"),
   mapPanel: document.querySelector(".map-panel"),
   mapOverlay: document.getElementById("map-overlay"),
@@ -133,6 +134,9 @@ async function init() {
 
   elements.resetButton.addEventListener("click", resetSelections);
   elements.downloadButton.addEventListener("click", handleDownload);
+  if (elements.fitButton) {
+    elements.fitButton.addEventListener("click", handleFitToSurvey);
+  }
   if (elements.themeSelect) {
     elements.themeSelect.value = state.activeTheme;
     elements.themeSelect.addEventListener("change", (event) => {
@@ -481,6 +485,9 @@ function updateStats() {
   if (selectedCount === 0) {
     elements.intersectionArea.textContent = "--";
     elements.downloadButton.disabled = true;
+    if (elements.fitButton) {
+      elements.fitButton.disabled = true;
+    }
     console.log("Area set to '--' (no selections)");
     return;
   }
@@ -502,6 +509,9 @@ function updateStats() {
       console.log("Area set to '--' (survey not found or no area)");
     }
     elements.downloadButton.disabled = true;
+    if (elements.fitButton) {
+      elements.fitButton.disabled = false;
+    }
     return;
   }
 
@@ -509,6 +519,9 @@ function updateStats() {
   elements.intersectionArea.textContent = "computing...";
   updateIntersectionArea();
   elements.downloadButton.disabled = false;
+  if (elements.fitButton) {
+    elements.fitButton.disabled = true;
+  }
 }
 
 async function ensureMocWasm() {
@@ -658,6 +671,33 @@ function forceAladinRedraw() {
 function handleDownload() {
   elements.coverageLog.textContent =
     "Intersection download will be available in a future update.";
+}
+
+function handleFitToSurvey() {
+  if (!state.aladin) {
+    return;
+  }
+  if (state.selected.size !== 1) {
+    return;
+  }
+  const surveyId = Array.from(state.selected)[0];
+  const survey = SURVEYS.find((item) => item.id === surveyId);
+  if (!survey) {
+    return;
+  }
+  const target = `moc:${survey.mocUrl}`;
+  try {
+    if (typeof state.aladin.setFoV === "function") {
+      state.aladin.setFoV(180);
+    }
+    if (typeof state.aladin.gotoObject === "function") {
+      state.aladin.gotoObject(target);
+    } else if (typeof state.aladin.gotoTarget === "function") {
+      state.aladin.gotoTarget(target);
+    }
+  } catch (error) {
+    console.error("Failed to fit to survey:", error);
+  }
 }
 
 function logStatus(message) {
