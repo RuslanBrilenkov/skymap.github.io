@@ -1,8 +1,9 @@
-// Version 1.7.5 - Restore normal opacity
-const VERSION = "1.7.5";
+// Version 1.8.0 - Persist theme, selections, and order
+const VERSION = "1.8.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
+const STORAGE_KEY = "sky-coverage-settings-v1";
 
 const SURVEY_CONFIGS = [
   {
@@ -92,6 +93,7 @@ init();
 
 async function init() {
   elements.coverageLog.textContent = "Initializing Aladin Lite…";
+  restoreSettings();
   renderSurveyList();
   renderLegend();
   logStatus("Survey list ready.");
@@ -283,6 +285,7 @@ function applyTheme(themeId) {
   renderSurveyList();
   renderLegend();
   scheduleRefreshMOCLayers();
+  persistSettings();
 }
 
 function updateSurveyToggleLabel() {
@@ -317,6 +320,7 @@ function reorderSurveys(sourceId, targetId) {
   renderSurveyList();
   renderLegend();
   scheduleRefreshMOCLayers();
+  persistSettings();
 }
 
 function clearDropTargets() {
@@ -350,6 +354,7 @@ function handleSurveyToggle(survey, isChecked) {
   updateStats();
   renderLegend();
   updateSurveyToggleLabel();
+  persistSettings();
 }
 
 function addSurveyLayer(survey) {
@@ -674,6 +679,57 @@ function resetSelections() {
   updateSurveyToggleLabel();
   elements.coverageLog.textContent = "Selections cleared.";
   logStatus("All selections cleared.");
+  persistSettings();
+}
+
+function persistSettings() {
+  try {
+    const payload = {
+      theme: state.activeTheme,
+      selected: Array.from(state.selected),
+      order: SURVEYS.map((survey) => survey.id),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Failed to persist settings:", error);
+  }
+}
+
+function restoreSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+    const data = JSON.parse(raw);
+
+    if (data.theme && COLOR_THEMES[data.theme]) {
+      state.activeTheme = data.theme;
+    }
+    if (Array.isArray(data.order)) {
+      const ordered = [];
+      data.order.forEach((id) => {
+        const survey = SURVEY_CONFIGS.find((item) => item.id === id);
+        if (survey) {
+          ordered.push(survey);
+        }
+      });
+      SURVEY_CONFIGS.forEach((survey) => {
+        if (!ordered.find((item) => item.id === survey.id)) {
+          ordered.push(survey);
+        }
+      });
+      SURVEYS = ordered.map((survey) => ({
+        ...survey,
+        color: COLOR_THEMES[state.activeTheme]?.colors[survey.id] || "#7de7c6",
+      }));
+    }
+    if (Array.isArray(data.selected)) {
+      state.selected = new Set(data.selected);
+    }
+  } catch (error) {
+    console.warn("Failed to restore settings:", error);
+  }
 }
 
 function forceAladinRedraw() {
