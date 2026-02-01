@@ -83,6 +83,59 @@ body {
   gap: 12px;
 }
 
+.survey-dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dropdown-toggle::after {
+  content: "▾";
+  color: var(--ink-muted);
+}
+
+.survey-dropdown.is-open .dropdown-toggle::after {
+  content: "▴";
+}
+
+.dropdown-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-top: 10px;
+  padding: 12px;
+  background: rgba(8, 12, 26, 0.96);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  max-height: 320px;
+  overflow: auto;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 6;
+}
+
+.survey-dropdown.is-open .dropdown-panel {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 .legend-list {
   display: grid;
   gap: 10px;

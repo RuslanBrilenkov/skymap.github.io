@@ -1,5 +1,5 @@
-// Version 1.7.0 - Added Fit-to-survey button
-const VERSION = "1.7.0";
+// Version 1.7.1 - Survey dropdown + selection-based legend
+const VERSION = "1.7.1";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -83,6 +83,9 @@ const elements = {
   mapOverlay: document.getElementById("map-overlay"),
   themeSelect: document.getElementById("theme-select"),
   legendList: document.getElementById("legend-list"),
+  surveyDropdown: document.getElementById("survey-dropdown"),
+  surveyToggle: document.getElementById("survey-toggle"),
+  surveyPanel: document.getElementById("survey-panel"),
 };
 
 init();
@@ -134,6 +137,16 @@ async function init() {
 
   elements.resetButton.addEventListener("click", resetSelections);
   elements.downloadButton.addEventListener("click", handleDownload);
+  if (elements.surveyToggle && elements.surveyDropdown) {
+    elements.surveyToggle.addEventListener("click", () => {
+      elements.surveyDropdown.classList.toggle("is-open");
+    });
+    document.addEventListener("click", (event) => {
+      if (!elements.surveyDropdown.contains(event.target)) {
+        elements.surveyDropdown.classList.remove("is-open");
+      }
+    });
+  }
   if (elements.fitButton) {
     elements.fitButton.addEventListener("click", handleFitToSurvey);
   }
@@ -231,6 +244,8 @@ function renderSurveyList() {
     item.appendChild(handle);
     elements.surveyList.appendChild(item);
   });
+
+  updateSurveyToggleLabel();
 }
 
 function renderLegend() {
@@ -238,7 +253,8 @@ function renderLegend() {
     return;
   }
   elements.legendList.innerHTML = "";
-  SURVEYS.forEach((survey) => {
+  const selectedSurveys = SURVEYS.filter((survey) => state.selected.has(survey.id));
+  selectedSurveys.forEach((survey) => {
     const item = document.createElement("div");
     item.className = "legend-item";
 
@@ -267,6 +283,24 @@ function applyTheme(themeId) {
   renderSurveyList();
   renderLegend();
   scheduleRefreshMOCLayers();
+}
+
+function updateSurveyToggleLabel() {
+  if (!elements.surveyToggle) {
+    return;
+  }
+  const selectedCount = state.selected.size;
+  if (selectedCount === 0) {
+    elements.surveyToggle.textContent = "Select Survey(s)";
+    return;
+  }
+  if (selectedCount === 1) {
+    const surveyId = Array.from(state.selected)[0];
+    const survey = SURVEYS.find((item) => item.id === surveyId);
+    elements.surveyToggle.textContent = survey ? survey.label : "1 survey selected";
+    return;
+  }
+  elements.surveyToggle.textContent = `${selectedCount} surveys selected`;
 }
 
 function reorderSurveys(sourceId, targetId) {
@@ -310,6 +344,8 @@ function handleSurveyToggle(survey, isChecked) {
   }
 
   updateStats();
+  renderLegend();
+  updateSurveyToggleLabel();
 }
 
 function addSurveyLayer(survey) {
@@ -630,6 +666,8 @@ function resetSelections() {
   endMapUpdate();
 
   updateStats();
+  renderLegend();
+  updateSurveyToggleLabel();
   elements.coverageLog.textContent = "Selections cleared.";
   logStatus("All selections cleared.");
 }
