@@ -1,5 +1,5 @@
-// Version 1.4.0 - Added color theme selector
-const VERSION = "1.4.0";
+// Version 1.4.1 - Default to color-blind friendly theme
+const VERSION = "1.4.1";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -51,7 +51,7 @@ const COLOR_THEMES = {
 
 let SURVEYS = SURVEY_CONFIGS.map((survey) => ({
   ...survey,
-  color: COLOR_THEMES.default.colors[survey.id] || "#7de7c6",
+  color: COLOR_THEMES.colorblind.colors[survey.id] || "#7de7c6",
 }));
 
 const state = {
@@ -65,7 +65,7 @@ const state = {
   intersectionToken: 0,
   refreshTimer: null,
   isUpdatingCount: 0,
-  activeTheme: "default",
+  activeTheme: "colorblind",
 };
 
 const elements = {
