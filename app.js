@@ -1,5 +1,5 @@
-// Version 1.7.3 - Reorder updates MOC layering
-const VERSION = "1.7.3";
+// Version 1.7.4 - Fix list order stacking direction
+const VERSION = "1.7.4";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -332,7 +332,11 @@ function handleSurveyToggle(survey, isChecked) {
   if (isChecked) {
     state.selected.add(survey.id);
     elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
-    addSurveyLayer(survey);
+    if (state.selected.size === 1) {
+      addSurveyLayer(survey);
+    } else {
+      scheduleRefreshMOCLayers();
+    }
   } else {
     // Remove survey from selection
     state.selected.delete(survey.id);
@@ -483,8 +487,8 @@ function refreshMOCLayers() {
 
     console.log(`Refreshing MOCs. Selected surveys: ${Array.from(state.selected).join(', ')}`);
 
-    // Re-add MOCs for all selected surveys in list order
-    SURVEYS.forEach((survey) => {
+    // Re-add MOCs so the top list item is drawn last (on top)
+    [...SURVEYS].reverse().forEach((survey) => {
       if (!state.selected.has(survey.id)) {
         return;
       }
