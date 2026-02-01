@@ -197,10 +197,12 @@ body {
 #aladin-lite-div {
   width: 100%;
   height: calc(100vh - 70px);
+  opacity: 1;
+  transition: opacity 160ms ease;
 }
 
 .map-panel.is-clearing #aladin-lite-div {
-  visibility: hidden;
+  opacity: 0;
 }
 
 .status-pill {
