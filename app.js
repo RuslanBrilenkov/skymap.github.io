@@ -1,5 +1,5 @@
 // Version 1.3.0 - Added client-side MOC intersection calculation
-const VERSION = "1.3.6";
+const VERSION = "1.3.7";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;

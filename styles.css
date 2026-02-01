@@ -233,6 +233,7 @@ body {
 
 .map-panel.is-updating #aladin-lite-div {
   opacity: 0.35;
+  pointer-events: none;
 }
 
 @keyframes spin {
