@@ -222,6 +222,29 @@ body {
   border: 1px solid rgba(246, 183, 111, 0.2);
 }
 
+.survey-tooltip {
+  position: absolute;
+  right: 14px;
+  top: 100%;
+  margin-top: 8px;
+  background: rgba(8, 12, 26, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 6;
+}
+
+.survey-item:hover .survey-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 .stats {
   display: grid;
@@ -331,28 +354,6 @@ body {
   pointer-events: none;
   transition: opacity 120ms ease;
   z-index: 5;
-}
-
-.map-tooltip {
-  position: absolute;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: rgba(8, 12, 26, 0.95);
-  color: var(--ink);
-  font-size: 0.75rem;
-  font-weight: 600;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-6px);
-  transition: opacity 120ms ease, transform 120ms ease;
-  z-index: 7;
-  max-width: 220px;
-}
-
-.map-tooltip.is-visible {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .map-panel.is-updating .map-overlay {
