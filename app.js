@@ -1,5 +1,5 @@
 // Version 1.3.0 - Added client-side MOC intersection calculation
-const VERSION = "1.3.3";
+const VERSION = "1.3.4";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
@@ -159,15 +159,68 @@ function handleSurveyToggle(survey, isChecked) {
   if (isChecked) {
     state.selected.add(survey.id);
     elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
+    addSurveyLayer(survey);
   } else {
     // Remove survey from selection
     state.selected.delete(survey.id);
     elements.coverageLog.textContent = `Removed ${survey.label} coverage.`;
+    const removed = removeSurveyLayer(survey.id);
+    if (!removed) {
+      scheduleRefreshMOCLayers();
+    }
   }
 
-  // Refresh all MOC layers (debounced)
-  scheduleRefreshMOCLayers();
   updateStats();
+}
+
+function addSurveyLayer(survey) {
+  if (!state.aladin) {
+    return;
+  }
+  try {
+    const A = window.A;
+    if (!A || !A.MOCFromURL) {
+      throw new Error("MOCFromURL is unavailable.");
+    }
+    const mocLayer = A.MOCFromURL(survey.mocUrl, {
+      color: survey.color,
+      opacity: survey.opacity,
+      lineWidth: 2,
+      adaptativeDisplay: false,
+    });
+    state.aladin.addMOC(mocLayer);
+    state.layers.set(survey.id, mocLayer);
+    console.log(`Added MOC for ${survey.id}`);
+  } catch (error) {
+    console.error("Failed to add MOC layer:", error);
+    scheduleRefreshMOCLayers();
+  }
+}
+
+function removeSurveyLayer(surveyId) {
+  if (!state.aladin) {
+    return false;
+  }
+  const layer = state.layers.get(surveyId);
+  if (!layer) {
+    return true;
+  }
+  try {
+    if (typeof layer.setOpacity === "function") {
+      layer.setOpacity(0);
+    }
+    if (typeof state.aladin.removeLayer === "function") {
+      state.aladin.removeLayer(layer);
+    } else if (typeof state.aladin.removeLayers === "function") {
+      return false;
+    }
+    state.layers.delete(surveyId);
+    console.log(`Removed MOC for ${surveyId}`);
+    return true;
+  } catch (error) {
+    console.error("Failed to remove MOC layer:", error);
+    return false;
+  }
 }
 
 function beginMapUpdate() {
@@ -373,11 +426,24 @@ function resetSelections() {
   // Clear selections first
   state.selected.clear();
 
-  // Refresh all MOC layers (debounced) to clear the map.
-  scheduleRefreshMOCLayers();
+  beginMapUpdate();
+  if (state.aladin) {
+    const layers = Array.from(state.layers.values());
+    layers.forEach((layer) => {
+      if (typeof layer.setOpacity === "function") {
+        layer.setOpacity(0);
+      }
+    });
+    if (typeof state.aladin.removeLayer === "function") {
+      layers.forEach((layer) => state.aladin.removeLayer(layer));
+    } else if (typeof state.aladin.removeLayers === "function") {
+      state.aladin.removeLayers();
+    }
+  }
 
   // Clear layer state
   state.layers.clear();
+  endMapUpdate();
 
   updateStats();
   elements.coverageLog.textContent = "Selections cleared.";
