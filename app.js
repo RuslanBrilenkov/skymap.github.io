@@ -1,5 +1,5 @@
-// Version 1.9.1 - Status messages for UI changes
-const VERSION = "1.9.1";
+// Version 1.9.2 - Fix fit-to-survey centering
+const VERSION = "1.9.2";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -13,6 +13,9 @@ const SURVEY_CONFIGS = [
     description: "Euclid DR1 coverage map",
     mocUrl: `${BASE_MOC_URL}euclid_dr1_coverage_moc.fits`,
     opacity: 0.45,
+    centerRa: 65.32484,
+    centerDec: -34.00900,
+    fitFov: 62,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 2108.51,  // Sky fraction: 0.051112
   },
@@ -22,6 +25,9 @@ const SURVEY_CONFIGS = [
     description: "eROSITA All-Sky Survey footprint",
     mocUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.fits`,
     opacity: 0.45,
+    centerRa: 138.16080,
+    centerDec: -47.67179,
+    fitFov: 180,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 21524.45,  // Sky fraction: 0.521767
   },
@@ -879,15 +885,15 @@ function handleFitToSurvey() {
   if (!survey) {
     return;
   }
-  const target = `moc:${survey.mocUrl}`;
   try {
+    const fov = survey.fitFov || 180;
     if (typeof state.aladin.setFoV === "function") {
-      state.aladin.setFoV(180);
+      state.aladin.setFoV(fov);
     }
-    if (typeof state.aladin.gotoObject === "function") {
-      state.aladin.gotoObject(target);
+    if (typeof state.aladin.gotoRaDec === "function") {
+      state.aladin.gotoRaDec(survey.centerRa, survey.centerDec);
     } else if (typeof state.aladin.gotoTarget === "function") {
-      state.aladin.gotoTarget(target);
+      state.aladin.gotoTarget(`${survey.centerRa} ${survey.centerDec}`);
     }
   } catch (error) {
     console.error("Failed to fit to survey:", error);
