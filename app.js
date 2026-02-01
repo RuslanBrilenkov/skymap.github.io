@@ -1,5 +1,5 @@
-// Version 1.9.0 - Add hover tooltip with survey area
-const VERSION = "1.9.0";
+// Version 1.9.1 - Map hover tooltip for survey areas
+const VERSION = "1.9.1";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -89,6 +89,7 @@ const elements = {
   surveyToggle: document.getElementById("survey-toggle"),
   surveyPanel: document.getElementById("survey-panel"),
   persistToggle: document.getElementById("persist-toggle"),
+  mapTooltip: document.getElementById("map-tooltip"),
 };
 
 init();
@@ -147,6 +148,8 @@ async function init() {
   if (state.selected.size > 0) {
     scheduleRefreshMOCLayers();
   }
+
+  setupMapHover();
 
   elements.resetButton.addEventListener("click", resetSelections);
   elements.downloadButton.addEventListener("click", handleDownload);
@@ -258,10 +261,6 @@ function renderSurveyList() {
     badge.className = "badge";
     badge.textContent = "MOC";
 
-    const tooltip = document.createElement("div");
-    tooltip.className = "survey-tooltip";
-    tooltip.textContent = `Area: ${survey.areaSqDeg.toFixed(2)} sq deg`;
-
     const handle = document.createElement("span");
     handle.className = "drag-handle";
     handle.textContent = "⋮⋮";
@@ -269,7 +268,6 @@ function renderSurveyList() {
 
     item.appendChild(label);
     item.appendChild(badge);
-    item.appendChild(tooltip);
     item.appendChild(handle);
     elements.surveyList.appendChild(item);
   });
@@ -707,6 +705,143 @@ function resetSelections() {
   elements.coverageLog.textContent = "Selections cleared.";
   logStatus("All selections cleared.");
   persistSettings();
+}
+
+function setupMapHover() {
+  const container = document.getElementById("aladin-lite-div");
+  if (!container || !elements.mapTooltip) {
+    return;
+  }
+
+  let rafId = null;
+  let lastEvent = null;
+
+  const handleMove = (event) => {
+    lastEvent = event;
+    if (rafId) {
+      return;
+    }
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      updateMapTooltip(lastEvent);
+    });
+  };
+
+  const handleLeave = () => {
+    hideMapTooltip();
+  };
+
+  container.addEventListener("mousemove", handleMove);
+  container.addEventListener("mouseleave", handleLeave);
+}
+
+function updateMapTooltip(event) {
+  if (!state.aladin || state.selected.size === 0) {
+    hideMapTooltip();
+    return;
+  }
+  const coords = getRaDecFromEvent(event);
+  if (!coords) {
+    hideMapTooltip();
+    return;
+  }
+  const [ra, dec] = coords;
+  const hitSurvey = findSurveyAt(ra, dec);
+  if (!hitSurvey) {
+    hideMapTooltip();
+    return;
+  }
+
+  const tooltip = elements.mapTooltip;
+  tooltip.textContent = `${hitSurvey.label} · ${hitSurvey.areaSqDeg.toFixed(2)} sq deg`;
+
+  const rect = event.currentTarget.getBoundingClientRect();
+  const x = event.clientX - rect.left + 12;
+  const y = event.clientY - rect.top + 12;
+  tooltip.style.left = `${x}px`;
+  tooltip.style.top = `${y}px`;
+  tooltip.classList.add("is-visible");
+  tooltip.setAttribute("aria-hidden", "false");
+}
+
+function hideMapTooltip() {
+  if (!elements.mapTooltip) {
+    return;
+  }
+  elements.mapTooltip.classList.remove("is-visible");
+  elements.mapTooltip.setAttribute("aria-hidden", "true");
+}
+
+function getRaDecFromEvent(event) {
+  const container = event.currentTarget;
+  const rect = container.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const aladin = state.aladin;
+
+  if (aladin && typeof aladin.pix2world === "function") {
+    const result = aladin.pix2world(x, y);
+    return normalizeRaDec(result);
+  }
+  if (aladin && aladin.view && typeof aladin.view.xy2radec === "function") {
+    const result = aladin.view.xy2radec(x, y);
+    return normalizeRaDec(result);
+  }
+  if (aladin && aladin.view && typeof aladin.view.pix2world === "function") {
+    const result = aladin.view.pix2world(x, y);
+    return normalizeRaDec(result);
+  }
+  return null;
+}
+
+function normalizeRaDec(result) {
+  if (!result) {
+    return null;
+  }
+  if (Array.isArray(result) && result.length >= 2) {
+    return [result[0], result[1]];
+  }
+  if (typeof result === "object") {
+    const ra = result.ra ?? result.lon ?? result[0];
+    const dec = result.dec ?? result.lat ?? result[1];
+    if (typeof ra === "number" && typeof dec === "number") {
+      return [ra, dec];
+    }
+  }
+  return null;
+}
+
+function findSurveyAt(ra, dec) {
+  for (const survey of SURVEYS) {
+    if (!state.selected.has(survey.id)) {
+      continue;
+    }
+    const layer = state.layers.get(survey.id);
+    if (!layer) {
+      continue;
+    }
+    if (layerContains(layer, ra, dec)) {
+      return survey;
+    }
+  }
+  return null;
+}
+
+function layerContains(layer, ra, dec) {
+  try {
+    if (typeof layer.contains === "function") {
+      return Boolean(layer.contains(ra, dec));
+    }
+    if (layer.moc && typeof layer.moc.contains === "function") {
+      return Boolean(layer.moc.contains(ra, dec));
+    }
+    if (layer.moc && typeof layer.moc.isIn === "function") {
+      return Boolean(layer.moc.isIn(ra, dec));
+    }
+  } catch (error) {
+    console.warn("Layer contains check failed:", error);
+  }
+  return false;
 }
 
 function persistSettings() {
