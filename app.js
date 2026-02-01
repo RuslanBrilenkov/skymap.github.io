@@ -52,6 +52,15 @@ const SURVEY_CONFIGS = [
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 1653.38,  // Sky fraction: 0.040079
   },
+  {
+    id: "kids",
+    label: "KiDS",
+    description: "Kilo-Degree Survey (KiDS-450) footprint",
+    mocUrl: `${BASE_MOC_URL}kids_footprint_moc.fits`,
+    opacity: 0.45,
+    // Pre-calculated area in square degrees (calculated using mocpy)
+    areaSqDeg: 362.68,  // Sky fraction: 0.008792
+  },
 ];
 
 const COLOR_THEMES = {
@@ -63,6 +72,7 @@ const COLOR_THEMES = {
       des: "#f7931a",
       desi_legacy: "#f5b352",
       hsc: "#7a7aed",
+      kids: "#4cbcac",
     },
   },
   colorblind: {
@@ -73,6 +83,7 @@ const COLOR_THEMES = {
       des: "#E69F00",
       desi_legacy: "#009E73",
       hsc: "#56B4E9",
+      kids: "#009E73",
     },
   },
   pastel: {
@@ -83,6 +94,7 @@ const COLOR_THEMES = {
       des: "#f4c199",
       desi_legacy: "#f2c2a2",
       hsc: "#c1c6f2",
+      kids: "#bfe7df",
     },
   },
 };
