@@ -69,6 +69,7 @@ const state = {
   isUpdatingCount: 0,
   activeTheme: "colorblind",
   dragSurveyId: null,
+  mocWasmFailed: false,
 };
 
 const elements = {
@@ -109,6 +110,8 @@ async function init() {
     elements.coverageLog.textContent =
       "Failed to load Aladin Lite. Check network access or retry.";
     elements.mapStatus.textContent = "Error";
+    elements.mapStatus.classList.add("map-status--error");
+    showToast("Failed to load Aladin Lite. Check your network connection.", "error", "aladin-init", 0);
     return;
   }
 
@@ -131,6 +134,8 @@ async function init() {
     console.error("Failed to initialize Aladin:", error);
     elements.coverageLog.textContent = `Failed to initialize Aladin: ${error.message}`;
     elements.mapStatus.textContent = "Error";
+    elements.mapStatus.classList.add("map-status--error");
+    showToast(`Failed to initialize Aladin: ${error.message}`, "error", "aladin-init", 0);
     return;
   }
 
@@ -152,14 +157,55 @@ async function init() {
   elements.downloadButton.addEventListener("click", handleDownload);
   if (elements.surveyToggle && elements.surveyDropdown) {
     elements.surveyToggle.addEventListener("click", () => {
-      elements.surveyDropdown.classList.toggle("is-open");
+      toggleDropdown(!elements.surveyDropdown.classList.contains("is-open"));
+    });
+    elements.surveyToggle.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        const willOpen = !elements.surveyDropdown.classList.contains("is-open");
+        toggleDropdown(willOpen);
+        if (willOpen) {
+          const first = elements.surveyPanel.querySelector("input[type=checkbox]");
+          if (first) first.focus();
+        }
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        toggleDropdown(false);
+      }
+    });
+    elements.surveyPanel.addEventListener("keydown", (event) => {
+      const checkboxes = Array.from(elements.surveyPanel.querySelectorAll("input[type=checkbox]"));
+      const currentIndex = checkboxes.indexOf(document.activeElement);
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const next = currentIndex < checkboxes.length - 1 ? currentIndex + 1 : 0;
+        checkboxes[next].focus();
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const prev = currentIndex > 0 ? currentIndex - 1 : checkboxes.length - 1;
+        checkboxes[prev].focus();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        toggleDropdown(false);
+        elements.surveyToggle.focus();
+      }
     });
     document.addEventListener("click", (event) => {
       if (!elements.surveyDropdown.contains(event.target)) {
-        elements.surveyDropdown.classList.remove("is-open");
+        toggleDropdown(false);
       }
     });
   }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      const toasts = elements.toastStack.querySelectorAll(".toast.is-visible");
+      if (toasts.length > 0) {
+        const lastToast = toasts[toasts.length - 1];
+        lastToast.classList.remove("is-visible");
+        setTimeout(() => lastToast.remove(), 200);
+      }
+    }
+  });
   if (elements.themeSelect) {
     elements.themeSelect.value = state.activeTheme;
     elements.themeSelect.addEventListener("change", (event) => {
@@ -200,6 +246,11 @@ async function waitForAladin() {
 
   console.error("Aladin Lite failed to load after", maxAttempts * delayMs, "ms");
   return false;
+}
+
+function toggleDropdown(open) {
+  elements.surveyDropdown.classList.toggle("is-open", open);
+  elements.surveyToggle.setAttribute("aria-expanded", String(open));
 }
 
 function renderSurveyList() {
@@ -244,6 +295,7 @@ function renderSurveyList() {
     checkbox.type = "checkbox";
     checkbox.value = survey.id;
     checkbox.id = `checkbox-${survey.id}`;
+    checkbox.setAttribute("aria-label", survey.label);
     checkbox.checked = state.selected.has(survey.id);
     checkbox.addEventListener("change", (event) => {
       handleSurveyToggle(survey, event.target.checked);
@@ -263,6 +315,20 @@ function renderSurveyList() {
     handle.className = "drag-handle";
     handle.textContent = "⋮⋮";
     handle.title = "Drag to reorder";
+    handle.setAttribute("aria-label", survey.label + " – drag to reorder");
+    handle.setAttribute("tabindex", "0");
+    handle.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        event.preventDefault();
+        const currentIndex = SURVEYS.findIndex((s) => s.id === survey.id);
+        const targetIndex = event.key === "ArrowUp" ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex >= 0 && targetIndex < SURVEYS.length) {
+          reorderSurveys(survey.id, SURVEYS[targetIndex].id);
+          const newHandle = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"] .drag-handle`);
+          if (newHandle) newHandle.focus();
+        }
+      }
+    });
 
     item.appendChild(label);
     item.appendChild(badge);
@@ -357,6 +423,8 @@ function handleSurveyToggle(survey, isChecked) {
   );
 
   if (isChecked) {
+    const item = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"]`);
+    if (item) item.classList.add("is-loading");
     showToast(`Loading ${survey.label}…`, "loading", survey.id);
     state.selected.add(survey.id);
     elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
@@ -401,10 +469,14 @@ function addSurveyLayer(survey) {
     state.layers.set(survey.id, mocLayer);
     console.log(`Added MOC for ${survey.id}`);
     showToast(`Loaded ${survey.label}`, "success", survey.id, 1400);
+    const loadedItem = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"]`);
+    if (loadedItem) loadedItem.classList.remove("is-loading");
   } catch (error) {
     console.error("Failed to add MOC layer:", error);
     scheduleRefreshMOCLayers();
     showToast(`Failed to load ${survey.label}`, "error", survey.id, 2000);
+    const failedItem = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"]`);
+    if (failedItem) failedItem.classList.remove("is-loading");
   }
 }
 
@@ -536,12 +608,17 @@ function refreshMOCLayers() {
       state.layers.set(survey.id, mocLayer);
       console.log(`Re-added MOC for ${survey.id}`);
       showToast(`Loaded ${survey.label}`, "success", survey.id, 1200);
+      const loadedItem = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"]`);
+      if (loadedItem) loadedItem.classList.remove("is-loading");
     });
     forceAladinRedraw();
   } catch (error) {
     console.error("Failed to refresh MOC layers:", error);
     elements.coverageLog.textContent = "Failed to refresh MOC layers. Check console.";
     showToast("Failed to refresh MOC layers", "error", "refresh", 2000);
+    elements.surveyList.querySelectorAll(".survey-item.is-loading").forEach(
+      (el) => el.classList.remove("is-loading")
+    );
   }
 }
 
@@ -587,7 +664,6 @@ function updateStats() {
   // For 2+ surveys, compute client-side intersections if wasm is available.
   elements.intersectionArea.textContent = "computing...";
   updateIntersectionArea();
-  elements.downloadButton.disabled = false;
 }
 
 async function ensureMocWasm() {
@@ -595,11 +671,23 @@ async function ensureMocWasm() {
     return state.mocWasm;
   }
   if (!window.mocReady) {
+    if (!state.mocWasmFailed) {
+      state.mocWasmFailed = true;
+      showToast("MOC engine unavailable. Intersection calculations cannot be performed.", "error", "wasm-init", 0);
+    }
     throw new Error("MOC wasm not initialized.");
   }
-  const moc = await window.mocReady;
-  state.mocWasm = moc;
-  return moc;
+  try {
+    const moc = await window.mocReady;
+    state.mocWasm = moc;
+    return moc;
+  } catch (error) {
+    if (!state.mocWasmFailed) {
+      state.mocWasmFailed = true;
+      showToast("MOC engine failed to load. Intersection calculations are unavailable.", "error", "wasm-init", 0);
+    }
+    throw error;
+  }
 }
 
 async function loadSurveyMoc(survey) {
@@ -629,21 +717,27 @@ async function updateIntersectionArea() {
       .filter(Boolean);
 
     if (surveys.length < 2) {
-      elements.intersectionArea.textContent = "pending";
+      elements.intersectionArea.textContent = "unavailable";
       return;
     }
 
-    const mocs = [];
-    for (const survey of surveys) {
-      mocs.push(await loadSurveyMoc(survey));
-    }
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("timeout")), 15000);
+    });
 
-    let intersection = mocs[0];
-    for (let index = 1; index < mocs.length; index += 1) {
-      intersection = intersection.and(mocs[index]);
-    }
+    const computePromise = (async () => {
+      const mocs = [];
+      for (const survey of surveys) {
+        mocs.push(await loadSurveyMoc(survey));
+      }
+      let intersection = mocs[0];
+      for (let index = 1; index < mocs.length; index += 1) {
+        intersection = intersection.and(mocs[index]);
+      }
+      return intersection.coveragePercentage();
+    })();
 
-    const coveragePercent = intersection.coveragePercentage();
+    const coveragePercent = await Promise.race([computePromise, timeoutPromise]);
     const areaSqDeg = (coveragePercent / 100) * 41252.96;
 
     if (token !== state.intersectionToken) {
@@ -654,8 +748,14 @@ async function updateIntersectionArea() {
     console.log(`Intersection area set to: ${areaSqDeg.toFixed(2)}`);
   } catch (error) {
     console.error("Failed to compute intersection area:", error);
-    if (token === state.intersectionToken) {
-      elements.intersectionArea.textContent = "pending";
+    if (token !== state.intersectionToken) {
+      return;
+    }
+    elements.intersectionArea.textContent = "unavailable";
+    if (error.message === "timeout") {
+      showToast("Intersection calculation timed out. Check your network connection.", "error", "intersection-timeout", 4000);
+    } else {
+      showToast("Intersection calculation failed.", "error", "intersection-error", 3000);
     }
   }
 }
@@ -722,12 +822,14 @@ function showToast(message, type, id, duration = 2000) {
     toast.classList.add("is-visible");
   });
 
-  window.setTimeout(() => {
-    toast.classList.remove("is-visible");
+  if (duration > 0) {
     window.setTimeout(() => {
-      toast.remove();
-    }, 200);
-  }, duration);
+      toast.classList.remove("is-visible");
+      window.setTimeout(() => {
+        toast.remove();
+      }, 200);
+    }, duration);
+  }
 }
 
 function persistSettings() {
