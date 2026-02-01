@@ -1,5 +1,5 @@
-// Version 1.7.1 - Survey dropdown + selection-based legend
-const VERSION = "1.7.1";
+// Version 1.7.2 - Temporary higher opacity for visual layering check
+const VERSION = "1.7.2";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -10,7 +10,7 @@ const SURVEY_CONFIGS = [
     label: "Euclid DR1",
     description: "Euclid DR1 coverage map",
     mocUrl: `${BASE_MOC_URL}euclid_dr1_coverage_moc.fits`,
-    opacity: 0.45,
+    opacity: 0.9,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 2108.51,  // Sky fraction: 0.051112
   },
@@ -19,7 +19,7 @@ const SURVEY_CONFIGS = [
     label: "eRASS1",
     description: "eROSITA All-Sky Survey footprint",
     mocUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.fits`,
-    opacity: 0.45,
+    opacity: 0.9,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 21524.45,  // Sky fraction: 0.521767
   },
