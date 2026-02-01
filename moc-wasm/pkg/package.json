@@ -1,0 +1,26 @@
+{
+  "name": "moc-wasm",
+  "collaborators": [
+    "F.-X. Pineau <francois-xavier.pineau@astro.unistra.fr>"
+  ],
+  "description": "WASM library to create and manipulate HEALPix\nMulti-Order Coverages maps (MOCs), see https://ivoa.net/documents/MOC/\n",
+  "version": "0.9.1",
+  "license": "Apache-2.0 OR MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cds-astro/cds-moc-rust/tree/main/crates/wasm"
+  },
+  "files": [
+    "moc_bg.wasm",
+    "moc.js"
+  ],
+  "module": "moc.js",
+  "homepage": "https://github.com/cds-astro/cds-moc-rust/tree/main/crates/wasm",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "keywords": [
+    "healpix",
+    "moc"
+  ]
+}

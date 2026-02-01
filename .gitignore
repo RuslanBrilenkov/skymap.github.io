@@ -1,0 +1,12 @@
+# AI assistant artifacts
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+CURSOR.md
+COPILOT.md
+WINDSURF.md
+AIDER.md
+
+# Claude/Codex config directories
+.claude/
+.codex/
