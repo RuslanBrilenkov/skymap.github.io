@@ -61,6 +61,15 @@ const SURVEY_CONFIGS = [
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 362.68,  // Sky fraction: 0.008792
   },
+  {
+    id: "lsst_wfd",
+    label: "LSST WFD",
+    description: "LSST Wide-Fast-Deep footprint",
+    mocUrl: `${BASE_MOC_URL}lsst_wfd_footprint_moc.fits`,
+    opacity: 0.45,
+    // Pre-calculated area in square degrees (calculated using mocpy)
+    areaSqDeg: 17659.58,  // Sky fraction: 0.428080
+  },
 ];
 
 const COLOR_THEMES = {
@@ -73,6 +82,7 @@ const COLOR_THEMES = {
       desi_legacy: "#f5b352",
       hsc: "#7a7aed",
       kids: "#4cbcac",
+      lsst_wfd: "#2ab7a9",
     },
   },
   colorblind: {
@@ -84,6 +94,7 @@ const COLOR_THEMES = {
       desi_legacy: "#009E73",
       hsc: "#56B4E9",
       kids: "#009E73",
+      lsst_wfd: "#009E73",
     },
   },
   pastel: {
@@ -95,6 +106,7 @@ const COLOR_THEMES = {
       desi_legacy: "#f2c2a2",
       hsc: "#c1c6f2",
       kids: "#bfe7df",
+      lsst_wfd: "#b8e3dd",
     },
   },
 };
