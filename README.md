@@ -10,6 +10,7 @@ Interactive web app for visualizing survey sky coverage MOCs in Aladin Lite.
 - DESI Legacy Imaging Survey DR9 (`desi_legacy_dr9_footprint_moc.fits`)
 - HSC (`hsc_footprint_moc.fits`)
 - KiDS (`kids_footprint_moc.fits`)
+- LSST WFD (`lsst_wfd_footprint_moc.fits`)
 
 MOC files live in `surveys/` and are loaded by `app.js`.
 
