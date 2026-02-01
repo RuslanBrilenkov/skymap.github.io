@@ -1,5 +1,5 @@
 // Version 1.9.2 - Remove fit-to-survey feature
-const VERSION = "1.9.2";
+const VERSION = "1.10.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
