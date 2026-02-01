@@ -1,5 +1,5 @@
 // Version 1.1.0 - Fixed MOC removal using removeLayers()
-const VERSION = "1.2.0";
+const VERSION = "1.2.1";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
@@ -25,6 +25,13 @@ const SURVEYS = [
     areaSqDeg: 21524.45,  // Sky fraction: 0.521767
   },
 ];
+
+const INTERSECTION_AREAS = {
+  "erass1+euclid": {
+    areaSqDeg: 1615.84,
+    skyFraction: 0.039169,
+  },
+};
 
 const state = {
   aladin: null,
@@ -242,10 +249,21 @@ function updateStats() {
     return;
   }
 
-  // For 2+ surveys, show "pending" until we implement intersection calculation
-  elements.intersectionArea.textContent = "pending";
+  // For 2+ surveys, show intersection area when precomputed.
+  const selectedIds = Array.from(state.selected).sort();
+  const intersectionKey = selectedIds.join("+");
+  const intersection = INTERSECTION_AREAS[intersectionKey];
+
+  if (intersection) {
+    const areaText = intersection.areaSqDeg.toFixed(2);
+    elements.intersectionArea.textContent = areaText;
+    console.log(`Intersection area set to: ${areaText}`);
+  } else {
+    elements.intersectionArea.textContent = "pending";
+    console.log("Area set to 'pending' (multiple surveys)");
+  }
+
   elements.downloadButton.disabled = false;
-  console.log("Area set to 'pending' (multiple surveys)");
 }
 
 function resetSelections() {
