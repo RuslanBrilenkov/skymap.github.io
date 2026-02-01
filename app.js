@@ -1,5 +1,5 @@
-// Version 1.8.0 - Persist theme, selections, and order
-const VERSION = "1.8.0";
+// Version 1.8.1 - Restore selections with auto-visualization
+const VERSION = "1.8.1";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -136,6 +136,12 @@ async function init() {
   console.log(`Sky Coverage Explorer v${VERSION} initialized`);
 
   updateStats();
+  renderLegend();
+  updateSurveyToggleLabel();
+
+  if (state.selected.size > 0) {
+    scheduleRefreshMOCLayers();
+  }
 
   elements.resetButton.addEventListener("click", resetSelections);
   elements.downloadButton.addEventListener("click", handleDownload);
