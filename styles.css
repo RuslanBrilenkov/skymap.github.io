@@ -143,6 +143,22 @@ body {
   gap: 10px;
 }
 
+.theme-picker select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.theme-picker select:focus {
+  outline: 2px solid rgba(125, 231, 198, 0.6);
+  outline-offset: 2px;
+}
+
 .button {
   border: none;
   border-radius: 999px;

@@ -1,16 +1,15 @@
-// Version 1.3.0 - Added client-side MOC intersection calculation
-const VERSION = "1.3.7";
+// Version 1.4.0 - Added color theme selector
+const VERSION = "1.4.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
 
-const SURVEYS = [
+const SURVEY_CONFIGS = [
   {
     id: "euclid",
     label: "Euclid DR1",
     description: "Euclid DR1 coverage map",
     mocUrl: `${BASE_MOC_URL}euclid_dr1_coverage_moc.fits`,
-    color: "#7de7c6",
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 2108.51,  // Sky fraction: 0.051112
@@ -20,12 +19,40 @@ const SURVEYS = [
     label: "eRASS1",
     description: "eROSITA All-Sky Survey footprint",
     mocUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.fits`,
-    color: "#ff6b6b",
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 21524.45,  // Sky fraction: 0.521767
   },
 ];
+
+const COLOR_THEMES = {
+  default: {
+    label: "Vivid",
+    colors: {
+      euclid: "#7de7c6",
+      erass1: "#ff6b6b",
+    },
+  },
+  colorblind: {
+    label: "Color-blind friendly",
+    colors: {
+      euclid: "#0072B2",
+      erass1: "#D55E00",
+    },
+  },
+  pastel: {
+    label: "Pastel",
+    colors: {
+      euclid: "#9ad9c7",
+      erass1: "#f4a7b9",
+    },
+  },
+};
+
+let SURVEYS = SURVEY_CONFIGS.map((survey) => ({
+  ...survey,
+  color: COLOR_THEMES.default.colors[survey.id] || "#7de7c6",
+}));
 
 const state = {
   aladin: null,
@@ -38,6 +65,7 @@ const state = {
   intersectionToken: 0,
   refreshTimer: null,
   isUpdatingCount: 0,
+  activeTheme: "default",
 };
 
 const elements = {
@@ -51,6 +79,7 @@ const elements = {
   resetButton: document.getElementById("reset-button"),
   mapPanel: document.querySelector(".map-panel"),
   mapOverlay: document.getElementById("map-overlay"),
+  themeSelect: document.getElementById("theme-select"),
 };
 
 init();
@@ -101,6 +130,12 @@ async function init() {
 
   elements.resetButton.addEventListener("click", resetSelections);
   elements.downloadButton.addEventListener("click", handleDownload);
+  if (elements.themeSelect) {
+    elements.themeSelect.value = state.activeTheme;
+    elements.themeSelect.addEventListener("change", (event) => {
+      applyTheme(event.target.value);
+    });
+  }
 }
 
 async function waitForAladin() {
@@ -134,6 +169,7 @@ function renderSurveyList() {
     checkbox.type = "checkbox";
     checkbox.value = survey.id;
     checkbox.id = `checkbox-${survey.id}`;
+    checkbox.checked = state.selected.has(survey.id);
     checkbox.addEventListener("change", (event) => {
       handleSurveyToggle(survey, event.target.checked);
     });
@@ -152,6 +188,19 @@ function renderSurveyList() {
     item.appendChild(badge);
     elements.surveyList.appendChild(item);
   });
+}
+
+function applyTheme(themeId) {
+  const theme = COLOR_THEMES[themeId] || COLOR_THEMES.default;
+  state.activeTheme = themeId in COLOR_THEMES ? themeId : "default";
+
+  SURVEYS = SURVEY_CONFIGS.map((survey) => ({
+    ...survey,
+    color: theme.colors[survey.id] || "#7de7c6",
+  }));
+
+  renderSurveyList();
+  scheduleRefreshMOCLayers();
 }
 
 function handleSurveyToggle(survey, isChecked) {
