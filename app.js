@@ -1,5 +1,5 @@
-// Version 1.9.0 - Per-survey loading toast
-const VERSION = "1.9.0";
+// Version 1.9.1 - Status messages for UI changes
+const VERSION = "1.9.1";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -168,6 +168,8 @@ async function init() {
     elements.themeSelect.value = state.activeTheme;
     elements.themeSelect.addEventListener("change", (event) => {
       applyTheme(event.target.value);
+      const theme = COLOR_THEMES[event.target.value] || COLOR_THEMES.default;
+      logStatus(`Color theme set to ${theme.label}.`);
     });
   }
   if (elements.persistToggle) {
@@ -176,8 +178,10 @@ async function init() {
       setPersistenceEnabled(enabled);
       if (!enabled) {
         localStorage.removeItem(STORAGE_KEY);
+        logStatus("Selected options are cleared.");
       } else {
         persistSettings();
+        logStatus("Selected options remembered.");
       }
     });
   }
