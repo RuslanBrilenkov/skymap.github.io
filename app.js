@@ -1,5 +1,5 @@
-// Version 1.9.1 - Status messages for UI changes
-const VERSION = "1.9.1";
+// Version 1.9.2 - Remove fit-to-survey feature
+const VERSION = "1.9.2";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -79,7 +79,6 @@ const elements = {
   mocStatus: document.getElementById("moc-status"),
   mapStatus: document.getElementById("map-status"),
   downloadButton: document.getElementById("download-button"),
-  fitButton: document.getElementById("fit-button"),
   resetButton: document.getElementById("reset-button"),
   mapPanel: document.querySelector(".map-panel"),
   mapOverlay: document.getElementById("map-overlay"),
@@ -160,9 +159,6 @@ async function init() {
         elements.surveyDropdown.classList.remove("is-open");
       }
     });
-  }
-  if (elements.fitButton) {
-    elements.fitButton.addEventListener("click", handleFitToSurvey);
   }
   if (elements.themeSelect) {
     elements.themeSelect.value = state.activeTheme;
@@ -564,9 +560,6 @@ function updateStats() {
   if (selectedCount === 0) {
     elements.intersectionArea.textContent = "--";
     elements.downloadButton.disabled = true;
-    if (elements.fitButton) {
-      elements.fitButton.disabled = true;
-    }
     console.log("Area set to '--' (no selections)");
     return;
   }
@@ -588,9 +581,6 @@ function updateStats() {
       console.log("Area set to '--' (survey not found or no area)");
     }
     elements.downloadButton.disabled = true;
-    if (elements.fitButton) {
-      elements.fitButton.disabled = false;
-    }
     return;
   }
 
@@ -598,9 +588,6 @@ function updateStats() {
   elements.intersectionArea.textContent = "computing...";
   updateIntersectionArea();
   elements.downloadButton.disabled = false;
-  if (elements.fitButton) {
-    elements.fitButton.disabled = true;
-  }
 }
 
 async function ensureMocWasm() {
@@ -867,32 +854,6 @@ function handleDownload() {
     "Intersection download will be available in a future update.";
 }
 
-function handleFitToSurvey() {
-  if (!state.aladin) {
-    return;
-  }
-  if (state.selected.size !== 1) {
-    return;
-  }
-  const surveyId = Array.from(state.selected)[0];
-  const survey = SURVEYS.find((item) => item.id === surveyId);
-  if (!survey) {
-    return;
-  }
-  const target = `moc:${survey.mocUrl}`;
-  try {
-    if (typeof state.aladin.setFoV === "function") {
-      state.aladin.setFoV(180);
-    }
-    if (typeof state.aladin.gotoObject === "function") {
-      state.aladin.gotoObject(target);
-    } else if (typeof state.aladin.gotoTarget === "function") {
-      state.aladin.gotoTarget(target);
-    }
-  } catch (error) {
-    console.error("Failed to fit to survey:", error);
-  }
-}
 
 function logStatus(message) {
   if (!elements.coverageLog) {
