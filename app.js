@@ -1,7 +1,8 @@
 // Version 1.3.0 - Added client-side MOC intersection calculation
-const VERSION = "1.3.5";
+const VERSION = "1.3.6";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
+const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
 
 const SURVEYS = [
   {
@@ -29,6 +30,7 @@ const SURVEYS = [
 const state = {
   aladin: null,
   aladinLibrary: null,
+  anchorLayer: null,
   layers: new Map(),
   selected: new Set(),
   mocWasm: null,
@@ -81,6 +83,7 @@ async function init() {
     });
 
     state.aladinLibrary = window.A;
+    addAnchorLayer();
   } catch (error) {
     console.error("Failed to initialize Aladin:", error);
     elements.coverageLog.textContent = `Failed to initialize Aladin: ${error.message}`;
@@ -197,6 +200,32 @@ function addSurveyLayer(survey) {
   }
 }
 
+function addAnchorLayer() {
+  if (!state.aladin) {
+    return;
+  }
+  if (state.anchorLayer) {
+    return;
+  }
+  try {
+    const A = window.A;
+    if (!A || !A.MOCFromURL) {
+      throw new Error("MOCFromURL is unavailable.");
+    }
+    const anchor = A.MOCFromURL(ANCHOR_MOC_URL, {
+      color: "#000000",
+      opacity: 0,
+      lineWidth: 0,
+      adaptativeDisplay: false,
+    });
+    state.aladin.addMOC(anchor);
+    state.anchorLayer = anchor;
+    console.log("Anchor MOC added");
+  } catch (error) {
+    console.error("Failed to add anchor MOC:", error);
+  }
+}
+
 function removeSurveyLayer(surveyId) {
   if (!state.aladin) {
     return false;
@@ -270,9 +299,15 @@ function refreshMOCLayers() {
       throw new Error("MOCFromURL is unavailable.");
     }
 
-    // Remove all existing layers (Aladin v2 limitation)
-    state.aladin.removeLayers();
+    // Remove existing survey layers only
+    const existingLayers = Array.from(state.layers.values());
+    if (typeof state.aladin.removeLayer === "function") {
+      existingLayers.forEach((layer) => state.aladin.removeLayer(layer));
+    } else if (typeof state.aladin.removeLayers === "function") {
+      state.aladin.removeLayers();
+    }
     state.layers.clear();
+    addAnchorLayer();
 
     console.log(`Refreshing MOCs. Selected surveys: ${Array.from(state.selected).join(', ')}`);
 
@@ -441,6 +476,7 @@ function resetSelections() {
     } else if (typeof state.aladin.removeLayers === "function") {
       state.aladin.removeLayers();
     }
+    addAnchorLayer();
     forceAladinRedraw();
   }
 
