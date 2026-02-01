@@ -1,5 +1,5 @@
 // Version 1.1.0 - Fixed MOC removal using removeLayers()
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
@@ -13,6 +13,16 @@ const SURVEYS = [
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 2108.51,  // Sky fraction: 0.051112
+  },
+  {
+    id: "erass1",
+    label: "eRASS1",
+    description: "eROSITA All-Sky Survey footprint",
+    mocUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.fits`,
+    color: "#ff6b6b",
+    opacity: 0.45,
+    // Pre-calculated area in square degrees (calculated using mocpy)
+    areaSqDeg: 21524.45,  // Sky fraction: 0.521767
   },
 ];
 
