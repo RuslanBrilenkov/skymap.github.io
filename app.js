@@ -26,6 +26,15 @@ const SURVEY_CONFIGS = [
     areaSqDeg: 21524.45,  // Sky fraction: 0.521767
   },
   {
+    id: "des",
+    label: "DES",
+    description: "Dark Energy Survey footprint",
+    mocUrl: `${BASE_MOC_URL}des_footprint_moc.fits`,
+    opacity: 0.45,
+    // Pre-calculated area in square degrees (calculated using mocpy)
+    areaSqDeg: 5155.03,  // Sky fraction: 0.124962
+  },
+  {
     id: "desi_legacy",
     label: "DESI Legacy DR9",
     description: "DESI Legacy Imaging Survey footprint",
@@ -42,6 +51,7 @@ const COLOR_THEMES = {
     colors: {
       euclid: "#7de7c6",
       erass1: "#ff6b6b",
+      des: "#f7931a",
       desi_legacy: "#f5b352",
     },
   },
@@ -50,6 +60,7 @@ const COLOR_THEMES = {
     colors: {
       euclid: "#0072B2",
       erass1: "#D55E00",
+      des: "#E69F00",
       desi_legacy: "#009E73",
     },
   },
@@ -58,6 +69,7 @@ const COLOR_THEMES = {
     colors: {
       euclid: "#9ad9c7",
       erass1: "#f4a7b9",
+      des: "#f4c199",
       desi_legacy: "#f2c2a2",
     },
   },
