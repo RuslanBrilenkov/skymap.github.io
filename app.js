@@ -25,6 +25,15 @@ const SURVEY_CONFIGS = [
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 21524.45,  // Sky fraction: 0.521767
   },
+  {
+    id: "desi_legacy",
+    label: "DESI Legacy DR9",
+    description: "DESI Legacy Imaging Survey footprint",
+    mocUrl: `${BASE_MOC_URL}desi_legacy_dr9_footprint_moc.fits`,
+    opacity: 0.45,
+    // Pre-calculated area in square degrees (calculated using mocpy)
+    areaSqDeg: 20813.05,  // Sky fraction: 0.504523
+  },
 ];
 
 const COLOR_THEMES = {
@@ -33,6 +42,7 @@ const COLOR_THEMES = {
     colors: {
       euclid: "#7de7c6",
       erass1: "#ff6b6b",
+      desi_legacy: "#f5b352",
     },
   },
   colorblind: {
@@ -40,6 +50,7 @@ const COLOR_THEMES = {
     colors: {
       euclid: "#0072B2",
       erass1: "#D55E00",
+      desi_legacy: "#009E73",
     },
   },
   pastel: {
@@ -47,6 +58,7 @@ const COLOR_THEMES = {
     colors: {
       euclid: "#9ad9c7",
       erass1: "#f4a7b9",
+      desi_legacy: "#f2c2a2",
     },
   },
 };
