@@ -1,5 +1,5 @@
 // Version 1.3.0 - Added client-side MOC intersection calculation
-const VERSION = "1.3.4";
+const VERSION = "1.3.5";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
@@ -216,6 +216,7 @@ function removeSurveyLayer(surveyId) {
     }
     state.layers.delete(surveyId);
     console.log(`Removed MOC for ${surveyId}`);
+    forceAladinRedraw();
     return true;
   } catch (error) {
     console.error("Failed to remove MOC layer:", error);
@@ -291,6 +292,7 @@ function refreshMOCLayers() {
         console.log(`Re-added MOC for ${survey.id}`);
       }
     });
+    forceAladinRedraw();
   } catch (error) {
     console.error("Failed to refresh MOC layers:", error);
     elements.coverageLog.textContent = "Failed to refresh MOC layers. Check console.";
@@ -439,6 +441,7 @@ function resetSelections() {
     } else if (typeof state.aladin.removeLayers === "function") {
       state.aladin.removeLayers();
     }
+    forceAladinRedraw();
   }
 
   // Clear layer state
@@ -448,6 +451,40 @@ function resetSelections() {
   updateStats();
   elements.coverageLog.textContent = "Selections cleared.";
   logStatus("All selections cleared.");
+}
+
+function forceAladinRedraw() {
+  if (!state.aladin) {
+    return;
+  }
+  try {
+    if (typeof state.aladin.refresh === "function") {
+      state.aladin.refresh();
+    }
+    if (typeof state.aladin.repaint === "function") {
+      state.aladin.repaint();
+    }
+    if (state.aladin.view && typeof state.aladin.view.requestRedraw === "function") {
+      state.aladin.view.requestRedraw();
+    }
+  } catch (error) {
+    console.warn("Aladin redraw helpers failed:", error);
+  }
+
+  const container = document.getElementById("aladin-lite-div");
+  if (!container) {
+    return;
+  }
+  const canvas = container.querySelector("canvas");
+  const target = canvas || container;
+
+  const previousOpacity = target.style.opacity;
+  target.style.opacity = "0.999";
+  requestAnimationFrame(() => {
+    target.style.opacity = previousOpacity || "1";
+  });
+
+  window.dispatchEvent(new Event("resize"));
 }
 
 function handleDownload() {
