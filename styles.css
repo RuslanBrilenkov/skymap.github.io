@@ -111,6 +111,20 @@ body {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px 14px;
+  gap: 10px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.survey-item.dragging {
+  opacity: 0.7;
+  background: rgba(125, 231, 198, 0.12);
+  box-shadow: 0 16px 32px rgba(5, 8, 20, 0.4);
+  transform: scale(1.01);
+}
+
+.survey-item.drop-target {
+  border-color: rgba(125, 231, 198, 0.6);
+  background: rgba(125, 231, 198, 0.08);
 }
 
 .survey-item label {
@@ -119,6 +133,24 @@ body {
   gap: 10px;
   cursor: pointer;
   font-weight: 600;
+  flex: 1;
+}
+
+.drag-handle {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  cursor: grab;
+  font-size: 1rem;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .survey-item input[type="checkbox"] {

@@ -1,5 +1,5 @@
-// Version 1.5.0 - Added legend panel
-const VERSION = "1.5.0";
+// Version 1.6.0 - Added drag-and-drop survey ordering
+const VERSION = "1.6.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -66,6 +66,7 @@ const state = {
   refreshTimer: null,
   isUpdatingCount: 0,
   activeTheme: "colorblind",
+  dragSurveyId: null,
 };
 
 const elements = {
@@ -165,6 +166,36 @@ function renderSurveyList() {
   SURVEYS.forEach((survey) => {
     const item = document.createElement("div");
     item.className = "survey-item";
+    item.draggable = true;
+    item.dataset.surveyId = survey.id;
+    item.addEventListener("dragstart", (event) => {
+      state.dragSurveyId = survey.id;
+      item.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", survey.id);
+    });
+    item.addEventListener("dragend", () => {
+      state.dragSurveyId = null;
+      item.classList.remove("dragging");
+      clearDropTargets();
+    });
+    item.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      item.classList.add("drop-target");
+    });
+    item.addEventListener("dragleave", () => {
+      item.classList.remove("drop-target");
+    });
+    item.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const sourceId = event.dataTransfer.getData("text/plain") || state.dragSurveyId;
+      const targetId = survey.id;
+      item.classList.remove("drop-target");
+      if (sourceId && targetId && sourceId !== targetId) {
+        reorderSurveys(sourceId, targetId);
+      }
+    });
 
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
@@ -186,8 +217,14 @@ function renderSurveyList() {
     badge.className = "badge";
     badge.textContent = "MOC";
 
+    const handle = document.createElement("span");
+    handle.className = "drag-handle";
+    handle.textContent = "⋮⋮";
+    handle.title = "Drag to reorder";
+
     item.appendChild(label);
     item.appendChild(badge);
+    item.appendChild(handle);
     elements.surveyList.appendChild(item);
   });
 }
@@ -226,6 +263,27 @@ function applyTheme(themeId) {
   renderSurveyList();
   renderLegend();
   scheduleRefreshMOCLayers();
+}
+
+function reorderSurveys(sourceId, targetId) {
+  const sourceIndex = SURVEYS.findIndex((survey) => survey.id === sourceId);
+  const targetIndex = SURVEYS.findIndex((survey) => survey.id === targetId);
+  if (sourceIndex === -1 || targetIndex === -1) {
+    return;
+  }
+  const updated = [...SURVEYS];
+  const [moved] = updated.splice(sourceIndex, 1);
+  updated.splice(targetIndex, 0, moved);
+  SURVEYS = updated;
+
+  renderSurveyList();
+  renderLegend();
+  scheduleRefreshMOCLayers();
+}
+
+function clearDropTargets() {
+  const targets = elements.surveyList.querySelectorAll(".drop-target");
+  targets.forEach((target) => target.classList.remove("drop-target"));
 }
 
 function handleSurveyToggle(survey, isChecked) {
