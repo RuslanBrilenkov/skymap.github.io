@@ -166,6 +166,7 @@ body {
   padding: 12px 14px;
   gap: 10px;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  position: relative;
 }
 
 .survey-item.dragging {
@@ -219,6 +220,30 @@ body {
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid rgba(246, 183, 111, 0.2);
+}
+
+.survey-tooltip {
+  position: absolute;
+  right: 14px;
+  top: 100%;
+  margin-top: 8px;
+  background: rgba(8, 12, 26, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 6;
+}
+
+.survey-item:hover .survey-tooltip {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .stats {

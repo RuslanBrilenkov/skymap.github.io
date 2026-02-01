@@ -1,5 +1,5 @@
-// Version 1.8.2 - Optional persistence toggle
-const VERSION = "1.8.2";
+// Version 1.9.0 - Add hover tooltip with survey area
+const VERSION = "1.9.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -258,6 +258,10 @@ function renderSurveyList() {
     badge.className = "badge";
     badge.textContent = "MOC";
 
+    const tooltip = document.createElement("div");
+    tooltip.className = "survey-tooltip";
+    tooltip.textContent = `Area: ${survey.areaSqDeg.toFixed(2)} sq deg`;
+
     const handle = document.createElement("span");
     handle.className = "drag-handle";
     handle.textContent = "⋮⋮";
@@ -265,6 +269,7 @@ function renderSurveyList() {
 
     item.appendChild(label);
     item.appendChild(badge);
+    item.appendChild(tooltip);
     item.appendChild(handle);
     elements.surveyList.appendChild(item);
   });
