@@ -1,5 +1,5 @@
-// Version 1.4.1 - Default to color-blind friendly theme
-const VERSION = "1.4.1";
+// Version 1.5.0 - Added legend panel
+const VERSION = "1.5.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -80,6 +80,7 @@ const elements = {
   mapPanel: document.querySelector(".map-panel"),
   mapOverlay: document.getElementById("map-overlay"),
   themeSelect: document.getElementById("theme-select"),
+  legendList: document.getElementById("legend-list"),
 };
 
 init();
@@ -87,6 +88,7 @@ init();
 async function init() {
   elements.coverageLog.textContent = "Initializing Aladin Lite…";
   renderSurveyList();
+  renderLegend();
   logStatus("Survey list ready.");
 
   // Wait for Aladin Lite v2 to be available
@@ -190,6 +192,28 @@ function renderSurveyList() {
   });
 }
 
+function renderLegend() {
+  if (!elements.legendList) {
+    return;
+  }
+  elements.legendList.innerHTML = "";
+  SURVEYS.forEach((survey) => {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    swatch.style.backgroundColor = survey.color;
+
+    const label = document.createElement("span");
+    label.textContent = survey.label;
+
+    item.appendChild(swatch);
+    item.appendChild(label);
+    elements.legendList.appendChild(item);
+  });
+}
+
 function applyTheme(themeId) {
   const theme = COLOR_THEMES[themeId] || COLOR_THEMES.default;
   state.activeTheme = themeId in COLOR_THEMES ? themeId : "default";
@@ -200,6 +224,7 @@ function applyTheme(themeId) {
   }));
 
   renderSurveyList();
+  renderLegend();
   scheduleRefreshMOCLayers();
 }
 
