@@ -1,5 +1,5 @@
 // Version 1.3.0 - Added client-side MOC intersection calculation
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
@@ -45,6 +45,7 @@ const elements = {
   mapStatus: document.getElementById("map-status"),
   downloadButton: document.getElementById("download-button"),
   resetButton: document.getElementById("reset-button"),
+  mapPanel: document.querySelector(".map-panel"),
 };
 
 init();
@@ -330,14 +331,26 @@ function resetSelections() {
     checkbox.checked = false;
   });
 
+  state.intersectionToken += 1;
+
   // Clear selections first
   state.selected.clear();
 
   // Remove all MOC layers from the map using removeLayers()
   if (state.aladin) {
     try {
+      if (elements.mapPanel) {
+        elements.mapPanel.classList.add("is-clearing");
+      }
       state.aladin.removeLayers();
       console.log("Removed all layers");
+      if (elements.mapPanel) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            elements.mapPanel.classList.remove("is-clearing");
+          });
+        });
+      }
     } catch (error) {
       console.error("Error removing layers:", error);
     }
