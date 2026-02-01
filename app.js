@@ -1,9 +1,10 @@
-// Version 1.8.1 - Restore selections with auto-visualization
-const VERSION = "1.8.1";
+// Version 1.8.2 - Optional persistence toggle
+const VERSION = "1.8.2";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
 const STORAGE_KEY = "sky-coverage-settings-v1";
+const PERSIST_KEY = "sky-coverage-persist-enabled";
 
 const SURVEY_CONFIGS = [
   {
@@ -87,13 +88,17 @@ const elements = {
   surveyDropdown: document.getElementById("survey-dropdown"),
   surveyToggle: document.getElementById("survey-toggle"),
   surveyPanel: document.getElementById("survey-panel"),
+  persistToggle: document.getElementById("persist-toggle"),
 };
 
 init();
 
 async function init() {
   elements.coverageLog.textContent = "Initializing Aladin Lite…";
-  restoreSettings();
+  const persistenceEnabled = restorePersistenceToggle();
+  if (persistenceEnabled) {
+    restoreSettings();
+  }
   renderSurveyList();
   renderLegend();
   logStatus("Survey list ready.");
@@ -162,6 +167,17 @@ async function init() {
     elements.themeSelect.value = state.activeTheme;
     elements.themeSelect.addEventListener("change", (event) => {
       applyTheme(event.target.value);
+    });
+  }
+  if (elements.persistToggle) {
+    elements.persistToggle.addEventListener("change", (event) => {
+      const enabled = Boolean(event.target.checked);
+      setPersistenceEnabled(enabled);
+      if (!enabled) {
+        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        persistSettings();
+      }
     });
   }
 }
@@ -689,6 +705,9 @@ function resetSelections() {
 }
 
 function persistSettings() {
+  if (!isPersistenceEnabled()) {
+    return;
+  }
   try {
     const payload = {
       theme: state.activeTheme,
@@ -702,6 +721,9 @@ function persistSettings() {
 }
 
 function restoreSettings() {
+  if (!isPersistenceEnabled()) {
+    return;
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -736,6 +758,35 @@ function restoreSettings() {
   } catch (error) {
     console.warn("Failed to restore settings:", error);
   }
+}
+
+function setPersistenceEnabled(enabled) {
+  try {
+    localStorage.setItem(PERSIST_KEY, enabled ? "1" : "0");
+    if (elements.persistToggle) {
+      elements.persistToggle.checked = enabled;
+    }
+  } catch (error) {
+    console.warn("Failed to store persistence toggle:", error);
+  }
+}
+
+function restorePersistenceToggle() {
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY);
+    const enabled = raw === "1";
+    if (elements.persistToggle) {
+      elements.persistToggle.checked = enabled;
+    }
+    return enabled;
+  } catch (error) {
+    console.warn("Failed to restore persistence toggle:", error);
+  }
+  return false;
+}
+
+function isPersistenceEnabled() {
+  return elements.persistToggle ? elements.persistToggle.checked : false;
 }
 
 function forceAladinRedraw() {

@@ -264,6 +264,20 @@ body {
   outline-offset: 2px;
 }
 
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-2);
+}
+
 .button {
   border: none;
   border-radius: 999px;
