@@ -1,5 +1,5 @@
 // Version 1.3.0 - Added client-side MOC intersection calculation
-const VERSION = "1.3.2";
+const VERSION = "1.3.3";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
@@ -34,6 +34,8 @@ const state = {
   mocWasm: null,
   mocCache: new Map(),
   intersectionToken: 0,
+  refreshTimer: null,
+  isUpdatingCount: 0,
 };
 
 const elements = {
@@ -46,6 +48,7 @@ const elements = {
   downloadButton: document.getElementById("download-button"),
   resetButton: document.getElementById("reset-button"),
   mapPanel: document.querySelector(".map-panel"),
+  mapOverlay: document.getElementById("map-overlay"),
 };
 
 init();
@@ -162,9 +165,43 @@ function handleSurveyToggle(survey, isChecked) {
     elements.coverageLog.textContent = `Removed ${survey.label} coverage.`;
   }
 
-  // Refresh all MOC layers
-  refreshMOCLayers();
+  // Refresh all MOC layers (debounced)
+  scheduleRefreshMOCLayers();
   updateStats();
+}
+
+function beginMapUpdate() {
+  state.isUpdatingCount += 1;
+  if (elements.mapPanel) {
+    elements.mapPanel.classList.add("is-updating");
+  }
+  if (elements.mapOverlay) {
+    elements.mapOverlay.setAttribute("aria-hidden", "false");
+  }
+}
+
+function endMapUpdate() {
+  state.isUpdatingCount = Math.max(0, state.isUpdatingCount - 1);
+  if (state.isUpdatingCount === 0) {
+    if (elements.mapPanel) {
+      elements.mapPanel.classList.remove("is-updating");
+    }
+    if (elements.mapOverlay) {
+      elements.mapOverlay.setAttribute("aria-hidden", "true");
+    }
+  }
+}
+
+function scheduleRefreshMOCLayers() {
+  beginMapUpdate();
+  if (state.refreshTimer) {
+    clearTimeout(state.refreshTimer);
+  }
+  state.refreshTimer = setTimeout(() => {
+    refreshMOCLayers();
+    state.refreshTimer = null;
+    setTimeout(endMapUpdate, 180);
+  }, 140);
 }
 
 function refreshMOCLayers() {
@@ -336,23 +373,8 @@ function resetSelections() {
   // Clear selections first
   state.selected.clear();
 
-  // Remove all MOC layers from the map using removeLayers()
-  if (state.aladin) {
-    try {
-      if (elements.mapPanel) {
-        elements.mapPanel.classList.add("is-clearing");
-      }
-      state.aladin.removeLayers();
-      console.log("Removed all layers");
-      if (elements.mapPanel) {
-        setTimeout(() => {
-          elements.mapPanel.classList.remove("is-clearing");
-        }, 180);
-      }
-    } catch (error) {
-      console.error("Error removing layers:", error);
-    }
-  }
+  // Refresh all MOC layers (debounced) to clear the map.
+  scheduleRefreshMOCLayers();
 
   // Clear layer state
   state.layers.clear();

@@ -179,6 +179,36 @@ body {
   grid-template-rows: auto 1fr;
 }
 
+.map-overlay {
+  position: absolute;
+  inset: 56px 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(8, 12, 26, 0.35);
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 5;
+}
+
+.map-panel.is-updating .map-overlay {
+  opacity: 1;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--accent-2);
+  animation: spin 0.9s linear infinite;
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -198,11 +228,17 @@ body {
   width: 100%;
   height: calc(100vh - 70px);
   opacity: 1;
-  transition: opacity 160ms ease;
+  transition: opacity 140ms ease;
 }
 
-.map-panel.is-clearing #aladin-lite-div {
-  opacity: 0;
+.map-panel.is-updating #aladin-lite-div {
+  opacity: 0.35;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .status-pill {
