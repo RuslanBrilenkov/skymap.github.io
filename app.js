@@ -1,5 +1,5 @@
-// Version 1.7.2 - Temporary higher opacity for visual layering check
-const VERSION = "1.7.2";
+// Version 1.7.3 - Reorder updates MOC layering
+const VERSION = "1.7.3";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -483,21 +483,21 @@ function refreshMOCLayers() {
 
     console.log(`Refreshing MOCs. Selected surveys: ${Array.from(state.selected).join(', ')}`);
 
-    // Re-add MOCs for all selected surveys
-    state.selected.forEach(surveyId => {
-      const survey = SURVEYS.find(s => s.id === surveyId);
-      if (survey) {
-        const mocLayer = A.MOCFromURL(survey.mocUrl, {
-          color: survey.color,
-          opacity: survey.opacity,
-          lineWidth: 2,
-          adaptativeDisplay: false,
-        });
-
-        state.aladin.addMOC(mocLayer);
-        state.layers.set(survey.id, mocLayer);
-        console.log(`Re-added MOC for ${survey.id}`);
+    // Re-add MOCs for all selected surveys in list order
+    SURVEYS.forEach((survey) => {
+      if (!state.selected.has(survey.id)) {
+        return;
       }
+      const mocLayer = A.MOCFromURL(survey.mocUrl, {
+        color: survey.color,
+        opacity: survey.opacity,
+        lineWidth: 2,
+        adaptativeDisplay: false,
+      });
+
+      state.aladin.addMOC(mocLayer);
+      state.layers.set(survey.id, mocLayer);
+      console.log(`Re-added MOC for ${survey.id}`);
     });
     forceAladinRedraw();
   } catch (error) {
