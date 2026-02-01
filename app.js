@@ -43,6 +43,15 @@ const SURVEY_CONFIGS = [
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 20813.05,  // Sky fraction: 0.504523
   },
+  {
+    id: "hsc",
+    label: "HSC",
+    description: "Subaru Hyper Suprime-Cam survey footprint",
+    mocUrl: `${BASE_MOC_URL}hsc_footprint_moc.fits`,
+    opacity: 0.45,
+    // Pre-calculated area in square degrees (calculated using mocpy)
+    areaSqDeg: 1653.38,  // Sky fraction: 0.040079
+  },
 ];
 
 const COLOR_THEMES = {
@@ -53,6 +62,7 @@ const COLOR_THEMES = {
       erass1: "#ff6b6b",
       des: "#f7931a",
       desi_legacy: "#f5b352",
+      hsc: "#7a7aed",
     },
   },
   colorblind: {
@@ -62,6 +72,7 @@ const COLOR_THEMES = {
       erass1: "#D55E00",
       des: "#E69F00",
       desi_legacy: "#009E73",
+      hsc: "#56B4E9",
     },
   },
   pastel: {
@@ -71,6 +82,7 @@ const COLOR_THEMES = {
       erass1: "#f4a7b9",
       des: "#f4c199",
       desi_legacy: "#f2c2a2",
+      hsc: "#c1c6f2",
     },
   },
 };
