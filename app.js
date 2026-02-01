@@ -1,5 +1,5 @@
-// Version 1.1.0 - Fixed MOC removal using removeLayers()
-const VERSION = "1.2.1";
+// Version 1.3.0 - Added client-side MOC intersection calculation
+const VERSION = "1.3.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 
@@ -26,18 +26,14 @@ const SURVEYS = [
   },
 ];
 
-const INTERSECTION_AREAS = {
-  "erass1+euclid": {
-    areaSqDeg: 1615.84,
-    skyFraction: 0.039169,
-  },
-};
-
 const state = {
   aladin: null,
   aladinLibrary: null,
   layers: new Map(),
   selected: new Set(),
+  mocWasm: null,
+  mocCache: new Map(),
+  intersectionToken: 0,
 };
 
 const elements = {
@@ -249,21 +245,80 @@ function updateStats() {
     return;
   }
 
-  // For 2+ surveys, show intersection area when precomputed.
-  const selectedIds = Array.from(state.selected).sort();
-  const intersectionKey = selectedIds.join("+");
-  const intersection = INTERSECTION_AREAS[intersectionKey];
+  // For 2+ surveys, compute client-side intersections if wasm is available.
+  elements.intersectionArea.textContent = "computing...";
+  updateIntersectionArea();
+  elements.downloadButton.disabled = false;
+}
 
-  if (intersection) {
-    const areaText = intersection.areaSqDeg.toFixed(2);
-    elements.intersectionArea.textContent = areaText;
-    console.log(`Intersection area set to: ${areaText}`);
-  } else {
-    elements.intersectionArea.textContent = "pending";
-    console.log("Area set to 'pending' (multiple surveys)");
+async function ensureMocWasm() {
+  if (state.mocWasm) {
+    return state.mocWasm;
+  }
+  if (!window.mocReady) {
+    throw new Error("MOC wasm not initialized.");
+  }
+  const moc = await window.mocReady;
+  state.mocWasm = moc;
+  return moc;
+}
+
+async function loadSurveyMoc(survey) {
+  if (state.mocCache.has(survey.id)) {
+    return state.mocCache.get(survey.id);
+  }
+  const mocPromise = ensureMocWasm()
+    .then((moc) => moc.MOC.fromFitsUrl(survey.mocUrl))
+    .then((mocInstance) => {
+      state.mocCache.set(survey.id, Promise.resolve(mocInstance));
+      return mocInstance;
+    });
+  state.mocCache.set(survey.id, mocPromise);
+  return mocPromise;
+}
+
+async function updateIntersectionArea() {
+  const token = ++state.intersectionToken;
+  const selectedIds = Array.from(state.selected).sort();
+  if (selectedIds.length < 2) {
+    return;
   }
 
-  elements.downloadButton.disabled = false;
+  try {
+    const surveys = selectedIds
+      .map((id) => SURVEYS.find((survey) => survey.id === id))
+      .filter(Boolean);
+
+    if (surveys.length < 2) {
+      elements.intersectionArea.textContent = "pending";
+      return;
+    }
+
+    const mocs = [];
+    for (const survey of surveys) {
+      mocs.push(await loadSurveyMoc(survey));
+    }
+
+    let intersection = mocs[0];
+    for (let index = 1; index < mocs.length; index += 1) {
+      intersection = intersection.and(mocs[index]);
+    }
+
+    const coveragePercent = intersection.coveragePercentage();
+    const areaSqDeg = (coveragePercent / 100) * 41252.96;
+
+    if (token !== state.intersectionToken) {
+      return;
+    }
+
+    elements.intersectionArea.textContent = areaSqDeg.toFixed(2);
+    console.log(`Intersection area set to: ${areaSqDeg.toFixed(2)}`);
+  } catch (error) {
+    console.error("Failed to compute intersection area:", error);
+    if (token === state.intersectionToken) {
+      elements.intersectionArea.textContent = "pending";
+    }
+  }
 }
 
 function resetSelections() {
