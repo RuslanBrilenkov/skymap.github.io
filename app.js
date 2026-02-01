@@ -1,5 +1,5 @@
-// Version 1.9.2 - Tooltip fallback when containment is unavailable
-const VERSION = "1.9.2";
+// Version 1.9.1 - Map hover tooltip for survey areas
+const VERSION = "1.9.1";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -69,7 +69,6 @@ const state = {
   isUpdatingCount: 0,
   activeTheme: "colorblind",
   dragSurveyId: null,
-  hasContainmentSupport: null,
 };
 
 const elements = {
@@ -813,10 +812,6 @@ function normalizeRaDec(result) {
 }
 
 function findSurveyAt(ra, dec) {
-  const supportsContainment = hasContainmentSupport();
-  if (!supportsContainment) {
-    return getTopSelectedSurvey();
-  }
   for (const survey of SURVEYS) {
     if (!state.selected.has(survey.id)) {
       continue;
@@ -847,37 +842,6 @@ function layerContains(layer, ra, dec) {
     console.warn("Layer contains check failed:", error);
   }
   return false;
-}
-
-function hasContainmentSupport() {
-  if (state.hasContainmentSupport !== null) {
-    return state.hasContainmentSupport;
-  }
-  for (const survey of SURVEYS) {
-    const layer = state.layers.get(survey.id);
-    if (!layer) {
-      continue;
-    }
-    if (typeof layer.contains === "function") {
-      state.hasContainmentSupport = true;
-      return true;
-    }
-    if (layer.moc && (typeof layer.moc.contains === "function" || typeof layer.moc.isIn === "function")) {
-      state.hasContainmentSupport = true;
-      return true;
-    }
-  }
-  state.hasContainmentSupport = false;
-  return false;
-}
-
-function getTopSelectedSurvey() {
-  for (const survey of SURVEYS) {
-    if (state.selected.has(survey.id)) {
-      return survey;
-    }
-  }
-  return null;
 }
 
 function persistSettings() {
