@@ -413,6 +413,43 @@ body {
   font-size: 0.9rem;
 }
 
+.projection-toggle {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid var(--border);
+}
+
+.projection-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.projection-btn:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+}
+
+.projection-btn.is-active {
+  background: rgba(125, 231, 198, 0.2);
+  color: var(--accent-2);
+}
+
+.projection-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 #aladin-lite-div {
   width: 100%;
   height: calc(100vh - 70px);
