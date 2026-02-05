@@ -1,5 +1,5 @@
-// Version 1.9.2 - Remove fit-to-survey feature
-const VERSION = "1.10.0";
+// Version 1.11.0 - Add projection toggle (Globe/Aitoff/Mollweide)
+const VERSION = "1.11.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -128,6 +128,7 @@ const state = {
   refreshTimer: null,
   isUpdatingCount: 0,
   activeTheme: "colorblind",
+  activeProjection: "SIN",
   dragSurveyId: null,
   mocWasmFailed: false,
 };
@@ -150,6 +151,7 @@ const elements = {
   surveyPanel: document.getElementById("survey-panel"),
   persistToggle: document.getElementById("persist-toggle"),
   toastStack: document.getElementById("toast-stack"),
+  projectionBtns: document.querySelectorAll(".projection-btn"),
 };
 
 init();
@@ -204,6 +206,17 @@ async function init() {
   elements.mocStatus.textContent = `MOC engine: ready (v${VERSION})`;
   logStatus("Application ready.");
   console.log(`Sky Coverage Explorer v${VERSION} initialized`);
+
+  // Apply restored projection if different from default
+  if (state.activeProjection !== "SIN") {
+    try {
+      state.aladin.setProjection(state.activeProjection);
+      console.log(`Restored projection: ${state.activeProjection}`);
+    } catch (error) {
+      console.warn("Failed to restore projection:", error);
+      state.activeProjection = "SIN";
+    }
+  }
 
   updateStats();
   renderLegend();
@@ -286,6 +299,20 @@ async function init() {
         logStatus("Selected options remembered.");
       }
     });
+  }
+
+  // Projection toggle buttons
+  if (elements.projectionBtns.length > 0) {
+    elements.projectionBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const projection = btn.dataset.projection;
+        if (projection && projection !== state.activeProjection) {
+          setProjection(projection);
+        }
+      });
+    });
+    // Restore saved projection after Aladin is ready
+    updateProjectionButtons();
   }
 }
 
@@ -435,6 +462,47 @@ function applyTheme(themeId) {
   renderLegend();
   scheduleRefreshMOCLayers();
   persistSettings();
+}
+
+function setProjection(projectionId) {
+  if (!state.aladin) {
+    console.warn("Aladin not ready for projection change");
+    return;
+  }
+
+  const validProjections = ["SIN", "AIT", "MOL", "TAN", "MER", "STG"];
+  if (!validProjections.includes(projectionId)) {
+    console.warn(`Invalid projection: ${projectionId}`);
+    return;
+  }
+
+  try {
+    state.aladin.setProjection(projectionId);
+    state.activeProjection = projectionId;
+    updateProjectionButtons();
+    persistSettings();
+
+    const projectionNames = {
+      SIN: "Globe (orthographic)",
+      AIT: "Aitoff (all-sky)",
+      MOL: "Mollweide (equal-area)",
+      TAN: "Gnomonic (tangent)",
+      MER: "Mercator",
+      STG: "Stereographic",
+    };
+    logStatus(`Projection set to ${projectionNames[projectionId] || projectionId}.`);
+    console.log(`Projection changed to: ${projectionId}`);
+  } catch (error) {
+    console.error("Failed to set projection:", error);
+    showToast("Failed to change projection", "error", "projection", 2000);
+  }
+}
+
+function updateProjectionButtons() {
+  elements.projectionBtns.forEach((btn) => {
+    const isActive = btn.dataset.projection === state.activeProjection;
+    btn.classList.toggle("is-active", isActive);
+  });
 }
 
 function updateSurveyToggleLabel() {
@@ -899,6 +967,7 @@ function persistSettings() {
   try {
     const payload = {
       theme: state.activeTheme,
+      projection: state.activeProjection,
       selected: Array.from(state.selected),
       order: SURVEYS.map((survey) => survey.id),
     };
@@ -921,6 +990,12 @@ function restoreSettings() {
 
     if (data.theme && COLOR_THEMES[data.theme]) {
       state.activeTheme = data.theme;
+    }
+    if (data.projection) {
+      const validProjections = ["SIN", "AIT", "MOL", "TAN", "MER", "STG"];
+      if (validProjections.includes(data.projection)) {
+        state.activeProjection = data.projection;
+      }
     }
     if (Array.isArray(data.order)) {
       const ordered = [];

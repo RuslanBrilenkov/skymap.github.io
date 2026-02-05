@@ -95,6 +95,17 @@
       <main class="map-panel">
         <div class="topbar">
           <strong>Aladin Lite V2</strong>
+          <div class="projection-toggle">
+            <button class="projection-btn is-active" id="proj-globe" data-projection="SIN" title="Globe view (orthographic)">
+              Globe
+            </button>
+            <button class="projection-btn" id="proj-aitoff" data-projection="AIT" title="Aitoff projection (all-sky)">
+              Aitoff
+            </button>
+            <button class="projection-btn" id="proj-mollweide" data-projection="MOL" title="Mollweide projection (equal-area)">
+              Mollweide
+            </button>
+          </div>
           <span id="map-status">Ready</span>
         </div>
         <div class="map-overlay" id="map-overlay" aria-hidden="true">
@@ -119,6 +130,6 @@
           throw error;
         });
     </script>
-    <script type="module" src="app.js?v=1.10.0"></script>
+    <script type="module" src="app.js?v=1.11.0"></script>
   </body>
 </html>

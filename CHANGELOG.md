@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-02-04 - Projection Toggle (v1.11.0)
+
+### New Features
+
+#### Projection Toggle
+Added toggle buttons in the top bar to switch between different map projections:
+- **Globe (SIN)** - Orthographic spherical view (default)
+- **Aitoff (AIT)** - Full-sky elliptical projection, ideal for viewing all-sky coverage
+- **Mollweide (MOL)** - Equal-area elliptical projection
+
+### Technical Implementation
+- Uses Aladin Lite v2's `setProjection()` method
+- Projection preference is persisted in localStorage when "Remember selections" is enabled
+- Active projection button is highlighted with accent color
+- Keyboard accessible with focus indicators
+
+### Usage
+Click any projection button in the top bar to switch views. The Aitoff and Mollweide projections show the entire sky "unfolded" in a single view, making it easier to see the full extent of survey coverage.
+
+---
+
 ## 2026-01-31 - Area Display & Interactive Controls
 
 ### New Features
@@ -101,3 +122,53 @@ python3 -m http.server 8000
 - Add "Download Intersection MOC" functionality
 - Show individual areas in survey list badges
 - Add union area calculation
+
+---
+
+## TODO / Planned Features
+
+### 1. Projection Toggle ✓
+Add a toggle button to switch between the Aladin globe map view and the "unfolded" projection views.
+- [x] Research Aladin Lite v2 projection options
+- [x] Add toggle button to UI (Globe, Aitoff, Mollweide)
+- [x] Implement projection switching logic
+- [ ] Test all MOC overlays in all projections
+- [ ] Ensure layer management works in all views
+
+### 2. Custom Survey Tiles from CSV
+Allow users to upload a CSV file with survey tile definitions and overlay them as a custom survey.
+
+**Input CSV format:**
+| tile_id | ra (center) | dec (center) | size (degrees) |
+|---------|-------------|--------------|----------------|
+| tile_1  | 150.0       | 2.5          | 1.0            |
+
+- [ ] Add CSV file upload UI component
+- [ ] Parse CSV and validate columns (RA, DEC, size)
+- [ ] Generate tile polygons from center + size
+- [ ] Overlay tiles on Aladin globe map
+- [ ] Overlay tiles on gnomonic projection
+- [ ] Allow user to name their custom survey
+- [ ] Add custom survey to legend with user-chosen color
+- [ ] Include custom survey in intersection calculations
+
+### 3. Source Coverage Lookup (CSV Export)
+When a user provides a list of sources (positions), return a CSV indicating which surveys cover each source.
+
+**Input CSV format:**
+| source_id | ra    | dec   |
+|-----------|-------|-------|
+| ABC       | 123.0 | 45.6  |
+
+**Output CSV format:**
+| source_id | ra    | dec   | euclid_dr1 | des | desi_legacy | ... |
+|-----------|-------|-------|------------|-----|-------------|-----|
+| ABC       | 123.0 | 45.6  | yes        | yes | no          | ... |
+
+- [ ] Add source CSV upload UI
+- [ ] Parse source positions from CSV
+- [ ] Check each position against selected survey MOCs
+- [ ] Use WASM library for point-in-MOC queries
+- [ ] Generate output CSV with coverage columns (only for selected surveys)
+- [ ] Provide download button for result CSV
+- [ ] Show preview of results in UI before download
