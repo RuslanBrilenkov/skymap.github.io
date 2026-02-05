@@ -1,64 +1,23 @@
 # Changelog
 
-## 2026-02-04 - GeoJSON Rendering Preparation (v1.16.0)
+## 2026-02-04 - Projection Toggle (v1.11.0)
 
 ### New Features
 
-#### GeoJSON-Ready D3 Projections
-- Updated the application to load and render high-fidelity survey boundaries from `.geojson` files in the D3.js Aitoff and Mollweide projections.
-- The app now gracefully falls back to displaying pre-defined approximate footprints if the corresponding `.geojson` files are not found.
+#### Projection Toggle
+Added toggle buttons in the top bar to switch between different map projections:
+- **Globe (SIN)** - Orthographic spherical view (default)
+- **Aitoff (AIT)** - Full-sky elliptical projection, ideal for viewing all-sky coverage
+- **Mollweide (MOL)** - Equal-area elliptical projection
 
 ### Technical Implementation
-- **Dual Data Format**:
-  - `SURVEY_CONFIGS` in `app.js` now includes two properties for MOC data:
-    - `mocUrl`: Points to `.geojson` files, intended for D3 rendering.
-    - `mocFitsUrl`: Points to `.fits` files, used by the WASM MOC library for intersection calculations and Aladin Lite rendering.
-- **Refactored Data Loading**:
-  - Replaced the `loadMocAsGeoJson` function with a new `loadGeoJson` function that directly fetches and parses GeoJSON files using the `fetch` API.
-  - The `loadSurveyMoc` function was updated to use the new `mocFitsUrl` property, ensuring intersection calculations remain functional.
-- **Cleanup**: Removed the non-functional `convert_surveys_to_geojson.py` script and its associated `.json` output files.
+- Uses Aladin Lite v2's `setProjection()` method
+- Projection preference is persisted in localStorage when "Remember selections" is enabled
+- Active projection button is highlighted with accent color
+- Keyboard accessible with focus indicators
 
-### Known Limitations
-- **GeoJSON files must be manually generated**: The application is now *prepared* to render GeoJSON, but it does not generate these files itself. They must be created in the `sky_map_visualizer` repository and manually copied to the `surveys/` directory.
-
----
-
-## 2026-02-04 - Dual Map System with D3.js Projections (v1.15.0)
-
-### New Features
-
-#### Multiple Projection Views
-Implemented a dual-library approach for different sky projections:
-- **Globe (SIN)** - Aladin Lite v2 orthographic spherical view (interactive)
-- **Aitoff (AIT)** - D3.js all-sky elliptical projection
-- **Mollweide (MOL)** - D3.js equal-area elliptical projection
-
-### Technical Implementation
-- **Aladin Lite v2** handles the Globe view (interactive, MOC overlays)
-- **D3.js + d3-geo-projection** handles Aitoff/Mollweide views
-- Two separate map containers (`#aladin-lite-div`, `#celestial-map`) that switch visibility
-- Projection toggle buttons in top bar with visual distinction (different accent colors)
-- Coordinate grid (graticule) with RA/Dec labels on flat projections
-- Approximate survey footprint visualization using hardcoded regions
-
-### Libraries
-- D3.js v7 (d3js.org CDN)
-- d3-geo-projection v4 (d3js.org CDN)
-
-### Known Limitations
-- **MOC to GeoJSON conversion not available** - The WASM library uses HEALPix format internally
-- Flat projections show approximate survey regions, not exact MOC boundaries
-- Future: Generate GeoJSON files from MOC in `sky_map_visualizer` repository
-
-### Survey Approximations (for flat projections)
-Hardcoded approximate regions based on known survey footprints:
-- Euclid: 3 circular fields (ecliptic pole, Fornax, COSMOS)
-- eRASS1: Western galactic hemisphere rectangle
-- DES: Southern sky rectangle
-- DESI Legacy: North and south galactic cap rectangles
-- HSC: 3 deep field circles
-- KiDS: Two horizontal strips
-- LSST WFD: Large southern sky rectangle
+### Usage
+Click any projection button in the top bar to switch views. The Aitoff and Mollweide projections show the entire sky "unfolded" in a single view, making it easier to see the full extent of survey coverage.
 
 ---
 
@@ -168,18 +127,13 @@ python3 -m http.server 8000
 
 ## TODO / Planned Features
 
-### 1. Projection Toggle ✓ (Partial)
+### 1. Projection Toggle ✓
 Add a toggle button to switch between the Aladin globe map view and the "unfolded" projection views.
-- [x] Research Aladin Lite v2 projection options (v2 doesn't support projection changes)
+- [x] Research Aladin Lite v2 projection options
 - [x] Add toggle button to UI (Globe, Aitoff, Mollweide)
-- [x] Implement dual-library approach (Aladin v2 for globe, D3.js for flat)
-- [x] Globe view uses Aladin Lite v2 with full MOC support
-- [x] Aitoff/Mollweide views use D3.js + d3-geo-projection
-- [x] Add coordinate grid and labels to flat projections
-- [x] Add approximate survey footprint visualizations
-- [x] **NEXT:** Generate GeoJSON files from MOC in `sky_map_visualizer` repo
-- [x] Load GeoJSON files for accurate survey boundaries in D3 views (scaffolded)
-- [ ] Test all surveys in all projections with real data
+- [x] Implement projection switching logic
+- [ ] Test all MOC overlays in all projections
+- [ ] Ensure layer management works in all views
 
 ### 2. Custom Survey Tiles from CSV
 Allow users to upload a CSV file with survey tile definitions and overlay them as a custom survey.

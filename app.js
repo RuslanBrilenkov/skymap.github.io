@@ -1,5 +1,5 @@
-// Version 1.15.0 - Improved D3 projections with approximate survey regions
-const VERSION = "1.15.0";
+// Version 1.11.0 - Add projection toggle (Globe/Aitoff/Mollweide)
+const VERSION = "1.11.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
@@ -11,8 +11,7 @@ const SURVEY_CONFIGS = [
     id: "euclid",
     label: "Euclid DR1",
     description: "Euclid DR1 coverage map",
-    mocUrl: `${BASE_MOC_URL}euclid_dr1_coverage_moc.geojson`,
-    mocFitsUrl: `${BASE_MOC_URL}euclid_dr1_coverage_moc.fits`,
+    mocUrl: `${BASE_MOC_URL}euclid_dr1_coverage_moc.fits`,
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 2108.51,  // Sky fraction: 0.051112
@@ -21,8 +20,7 @@ const SURVEY_CONFIGS = [
     id: "erass1",
     label: "eRASS1",
     description: "eROSITA All-Sky Survey footprint",
-    mocUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.geojson`,
-    mocFitsUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.fits`,
+    mocUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.fits`,
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 21524.45,  // Sky fraction: 0.521767
@@ -31,8 +29,7 @@ const SURVEY_CONFIGS = [
     id: "des",
     label: "DES",
     description: "Dark Energy Survey footprint",
-    mocUrl: `${BASE_MOC_URL}des_footprint_moc.geojson`,
-    mocFitsUrl: `${BASE_MOC_URL}des_footprint_moc.fits`,
+    mocUrl: `${BASE_MOC_URL}des_footprint_moc.fits`,
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 5155.03,  // Sky fraction: 0.124962
@@ -41,8 +38,7 @@ const SURVEY_CONFIGS = [
     id: "desi_legacy",
     label: "DESI Legacy DR9",
     description: "DESI Legacy Imaging Survey footprint",
-    mocUrl: `${BASE_MOC_URL}desi_legacy_dr9_footprint_moc.geojson`,
-    mocFitsUrl: `${BASE_MOC_URL}desi_legacy_dr9_footprint_moc.fits`,
+    mocUrl: `${BASE_MOC_URL}desi_legacy_dr9_footprint_moc.fits`,
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 20813.05,  // Sky fraction: 0.504523
@@ -51,8 +47,7 @@ const SURVEY_CONFIGS = [
     id: "hsc",
     label: "HSC",
     description: "Subaru Hyper Suprime-Cam survey footprint",
-    mocUrl: `${BASE_MOC_URL}hsc_footprint_moc.geojson`,
-    mocFitsUrl: `${BASE_MOC_URL}hsc_footprint_moc.fits`,
+    mocUrl: `${BASE_MOC_URL}hsc_footprint_moc.fits`,
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 1653.38,  // Sky fraction: 0.040079
@@ -61,8 +56,7 @@ const SURVEY_CONFIGS = [
     id: "kids",
     label: "KiDS",
     description: "Kilo-Degree Survey (KiDS-450) footprint",
-    mocUrl: `${BASE_MOC_URL}kids_footprint_moc.geojson`,
-    mocFitsUrl: `${BASE_MOC_URL}kids_footprint_moc.fits`,
+    mocUrl: `${BASE_MOC_URL}kids_footprint_moc.fits`,
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 362.68,  // Sky fraction: 0.008792
@@ -71,8 +65,7 @@ const SURVEY_CONFIGS = [
     id: "lsst_wfd",
     label: "LSST WFD",
     description: "LSST Wide-Fast-Deep footprint",
-    mocUrl: `${BASE_MOC_URL}lsst_wfd_footprint_moc.geojson`,
-    mocFitsUrl: `${BASE_MOC_URL}lsst_wfd_footprint_moc.fits`,
+    mocUrl: `${BASE_MOC_URL}lsst_wfd_footprint_moc.fits`,
     opacity: 0.45,
     // Pre-calculated area in square degrees (calculated using mocpy)
     areaSqDeg: 17659.58,  // Sky fraction: 0.428080
@@ -131,16 +124,11 @@ const state = {
   selected: new Set(),
   mocWasm: null,
   mocCache: new Map(),
-  mocGeoJsonCache: new Map(),
   intersectionToken: 0,
   refreshTimer: null,
   isUpdatingCount: 0,
   activeTheme: "colorblind",
   activeProjection: "SIN",
-  celestialInitialized: false,
-  celestialSvg: null,
-  celestialProjection: null,
-  celestialPath: null,
   dragSurveyId: null,
   mocWasmFailed: false,
 };
@@ -164,8 +152,6 @@ const elements = {
   persistToggle: document.getElementById("persist-toggle"),
   toastStack: document.getElementById("toast-stack"),
   projectionBtns: document.querySelectorAll(".projection-btn"),
-  aladinContainer: document.getElementById("aladin-lite-div"),
-  celestialContainer: document.getElementById("celestial-map"),
 };
 
 init();
@@ -192,12 +178,11 @@ async function init() {
   }
 
   try {
-    // Aladin Lite v2 initialization with projection support
+    // Aladin Lite v2 initialization
     state.aladin = window.A.aladin("#aladin-lite-div", {
       survey: "P/DSS2/color",
       fov: 180,
       target: "0 +0",
-      projection: state.activeProjection,
       showReticle: true,
       showZoomControl: true,
       showFullscreenControl: true,
@@ -207,7 +192,6 @@ async function init() {
 
     state.aladinLibrary = window.A;
     addAnchorLayer();
-    console.log(`Aladin initialized with projection: ${state.activeProjection}`);
   } catch (error) {
     console.error("Failed to initialize Aladin:", error);
     elements.coverageLog.textContent = `Failed to initialize Aladin: ${error.message}`;
@@ -222,6 +206,17 @@ async function init() {
   elements.mocStatus.textContent = `MOC engine: ready (v${VERSION})`;
   logStatus("Application ready.");
   console.log(`Sky Coverage Explorer v${VERSION} initialized`);
+
+  // Apply restored projection if different from default
+  if (state.activeProjection !== "SIN") {
+    try {
+      state.aladin.setProjection(state.activeProjection);
+      console.log(`Restored projection: ${state.activeProjection}`);
+    } catch (error) {
+      console.warn("Failed to restore projection:", error);
+      state.activeProjection = "SIN";
+    }
+  }
 
   updateStats();
   renderLegend();
@@ -470,413 +465,36 @@ function applyTheme(themeId) {
 }
 
 function setProjection(projectionId) {
-  const validProjections = ["SIN", "AIT", "MOL"];
+  if (!state.aladin) {
+    console.warn("Aladin not ready for projection change");
+    return;
+  }
+
+  const validProjections = ["SIN", "AIT", "MOL", "TAN", "MER", "STG"];
   if (!validProjections.includes(projectionId)) {
     console.warn(`Invalid projection: ${projectionId}`);
     return;
   }
 
-  const projectionNames = {
-    SIN: "Globe (Aladin)",
-    AIT: "Aitoff (all-sky)",
-    MOL: "Mollweide (equal-area)",
-  };
-
-  beginMapUpdate();
-
-  if (projectionId === "SIN") {
-    // Switch to Aladin Lite (Globe view)
-    switchToAladin();
-  } else {
-    // Switch to d3-celestial (Aitoff or Mollweide)
-    switchToCelestial(projectionId);
-  }
-
-  state.activeProjection = projectionId;
-  updateProjectionButtons();
-  persistSettings();
-  logStatus(`Projection set to ${projectionNames[projectionId]}.`);
-  console.log(`Projection changed to: ${projectionId}`);
-
-  setTimeout(endMapUpdate, 300);
-}
-
-function switchToAladin() {
-  // Show Aladin, hide Celestial
-  if (elements.aladinContainer) {
-    elements.aladinContainer.classList.add("is-active");
-  }
-  if (elements.celestialContainer) {
-    elements.celestialContainer.classList.remove("is-active");
-  }
-  showToast("Switched to Globe view", "success", "projection", 1500);
-}
-
-function switchToCelestial(projectionId) {
-  // Hide Aladin, show Celestial
-  if (elements.aladinContainer) {
-    elements.aladinContainer.classList.remove("is-active");
-  }
-  if (elements.celestialContainer) {
-    elements.celestialContainer.classList.add("is-active");
-  }
-
-  // Initialize or update d3-celestial
-  initCelestialMap(projectionId);
-  showToast(`Switched to ${projectionId === "AIT" ? "Aitoff" : "Mollweide"} view`, "success", "projection", 1500);
-}
-
-function initCelestialMap(projectionId) {
-  // Check if D3 is loaded
-  if (typeof d3 === "undefined") {
-    console.error("D3.js library not loaded");
-    showToast("D3.js library not loaded. Please refresh the page.", "error", "celestial", 4000);
-    return;
-  }
-
-  // Clear existing content
-  if (elements.celestialContainer) {
-    elements.celestialContainer.innerHTML = "";
-  }
-
-  // Get container dimensions
-  const container = elements.celestialContainer;
-  const width = container ? container.clientWidth : 800;
-  const height = container ? container.clientHeight : 600;
-
-  // Create SVG
-  const svg = d3.select("#celestial-map")
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height)
-    .style("background", "#0a0a1a");
-
-  // Create projection based on type
-  let projection;
-  if (projectionId === "AIT") {
-    projection = d3.geoAitoff()
-      .scale(width / 6)
-      .translate([width / 2, height / 2])
-      .rotate([0, 0]);
-  } else if (projectionId === "MOL") {
-    projection = d3.geoMollweide()
-      .scale(width / 6)
-      .translate([width / 2, height / 2])
-      .rotate([0, 0]);
-  } else {
-    projection = d3.geoAitoff()
-      .scale(width / 6)
-      .translate([width / 2, height / 2]);
-  }
-
-  const path = d3.geoPath().projection(projection);
-
-  // Draw sphere outline
-  svg.append("path")
-    .datum({ type: "Sphere" })
-    .attr("d", path)
-    .attr("fill", "#0f1424")
-    .attr("stroke", "#334")
-    .attr("stroke-width", 1.5);
-
-  // Draw graticule (coordinate grid)
-  const graticule = d3.geoGraticule()
-    .step([30, 30]);
-
-  svg.append("path")
-    .datum(graticule)
-    .attr("d", path)
-    .attr("fill", "none")
-    .attr("stroke", "#335")
-    .attr("stroke-width", 0.5)
-    .attr("stroke-opacity", 0.6);
-
-  // Draw equator
-  const equator = {
-    type: "LineString",
-    coordinates: d3.range(-180, 181, 5).map(lon => [lon, 0])
-  };
-  svg.append("path")
-    .datum(equator)
-    .attr("d", path)
-    .attr("fill", "none")
-    .attr("stroke", "#4a90d9")
-    .attr("stroke-width", 1)
-    .attr("stroke-opacity", 0.7);
-
-  // Add projection label with visual distinction
-  const projName = projectionId === "AIT" ? "Aitoff" : "Mollweide";
-  const projColor = projectionId === "AIT" ? "#4a9" : "#a4a";
-
-  svg.append("text")
-    .attr("x", 20)
-    .attr("y", 30)
-    .attr("fill", projColor)
-    .attr("font-family", "Space Grotesk, sans-serif")
-    .attr("font-size", "14px")
-    .attr("font-weight", "600")
-    .text(`${projName} Projection`);
-
-  // Add distinctive border color based on projection
-  svg.select("path")
-    .attr("stroke", projColor)
-    .attr("stroke-width", 2);
-
-  // Add RA labels at key positions
-  const raLabels = [
-    { ra: 0, label: "0h" },
-    { ra: 90, label: "6h" },
-    { ra: 180, label: "12h" },
-    { ra: -90, label: "18h" },
-  ];
-
-  raLabels.forEach(({ ra, label }) => {
-    const pos = projection([ra, 0]);
-    if (pos) {
-      svg.append("text")
-        .attr("x", pos[0])
-        .attr("y", height - 15)
-        .attr("text-anchor", "middle")
-        .attr("fill", "#667")
-        .attr("font-family", "Space Grotesk, sans-serif")
-        .attr("font-size", "11px")
-        .text(label);
-    }
-  });
-
-  // Add Dec labels
-  const decLabels = [
-    { dec: 60, label: "+60°" },
-    { dec: 30, label: "+30°" },
-    { dec: 0, label: "0°" },
-    { dec: -30, label: "-30°" },
-    { dec: -60, label: "-60°" },
-  ];
-
-  decLabels.forEach(({ dec, label }) => {
-    const pos = projection([0, dec]);
-    if (pos) {
-      svg.append("text")
-        .attr("x", 15)
-        .attr("y", pos[1] + 4)
-        .attr("fill", "#667")
-        .attr("font-family", "Space Grotesk, sans-serif")
-        .attr("font-size", "10px")
-        .text(label);
-    }
-  });
-
-  state.celestialInitialized = true;
-  state.celestialProjection = projection;
-  state.celestialSvg = svg;
-  state.celestialPath = path;
-
-  console.log(`D3 sky map initialized with ${projName} projection`);
-
-  // Add MOC overlays
-  addMocOverlaysToCelestial();
-}
-
-async function addMocOverlaysToCelestial() {
-  if (!state.celestialInitialized || !state.celestialSvg || state.selected.size === 0) {
-    return;
-  }
-
   try {
-    const selectedSurveys = SURVEYS.filter(s => state.selected.has(s.id));
+    state.aladin.setProjection(projectionId);
+    state.activeProjection = projectionId;
+    updateProjectionButtons();
+    persistSettings();
 
-    // Create a group for MOC overlays
-    let mocGroup = state.celestialSvg.select(".moc-overlays");
-    if (mocGroup.empty()) {
-      mocGroup = state.celestialSvg.append("g").attr("class", "moc-overlays");
-    } else {
-      mocGroup.selectAll("*").remove();
-    }
-
-    for (const survey of selectedSurveys) {
-      await addSurveyToCelestial(survey, mocGroup);
-    }
-
+    const projectionNames = {
+      SIN: "Globe (orthographic)",
+      AIT: "Aitoff (all-sky)",
+      MOL: "Mollweide (equal-area)",
+      TAN: "Gnomonic (tangent)",
+      MER: "Mercator",
+      STG: "Stereographic",
+    };
+    logStatus(`Projection set to ${projectionNames[projectionId] || projectionId}.`);
+    console.log(`Projection changed to: ${projectionId}`);
   } catch (error) {
-    console.error("Failed to add MOC overlays to celestial:", error);
-  }
-}
-
-async function addSurveyToCelestial(survey, mocGroup) {
-  try {
-    // Get or create GeoJSON for this MOC
-    let geoJson = state.mocGeoJsonCache.get(survey.id);
-
-    if (!geoJson) {
-      // Load GeoJSON
-      geoJson = await loadGeoJson(survey);
-      if (geoJson) {
-        state.mocGeoJsonCache.set(survey.id, geoJson);
-      }
-    }
-
-    if (geoJson && geoJson.features && geoJson.features.length > 0) {
-      // Draw each feature
-      mocGroup.selectAll(`.moc-${survey.id}`)
-        .data(geoJson.features)
-        .enter()
-        .append("path")
-        .attr("class", `moc-${survey.id}`)
-        .attr("d", state.celestialPath)
-        .attr("fill", survey.color)
-        .attr("fill-opacity", survey.opacity || 0.45)
-        .attr("stroke", survey.color)
-        .attr("stroke-width", 0.5)
-        .attr("stroke-opacity", 0.8);
-
-      console.log(`Added ${survey.label} to celestial map (${geoJson.features.length} features)`);
-    } else {
-      // Draw a placeholder marker for surveys without GeoJSON
-      console.warn(`No GeoJSON data for ${survey.label}, showing placeholder`);
-      addSurveyPlaceholder(survey, mocGroup);
-    }
-  } catch (error) {
-    console.error(`Failed to add ${survey.label} to celestial:`, error);
-    addSurveyPlaceholder(survey, mocGroup);
-  }
-}
-
-function addSurveyPlaceholder(survey, mocGroup) {
-  // Draw approximate survey footprint based on known coverage regions
-  // These are simplified representations of actual survey areas
-
-  const surveyRegions = {
-    euclid: [
-      // Euclid DR1 - several fields near ecliptic poles and equator
-      { type: "circle", ra: 269, dec: 66, radius: 15 },  // North ecliptic
-      { type: "circle", ra: 53, dec: -28, radius: 12 },  // Fornax
-      { type: "circle", ra: 150, dec: 2, radius: 10 },   // COSMOS
-    ],
-    erass1: [
-      // eROSITA All-Sky - western galactic hemisphere
-      { type: "rect", ra: 0, dec: 0, width: 180, height: 180 },
-    ],
-    des: [
-      // Dark Energy Survey - southern sky
-      { type: "rect", ra: -30, dec: -55, width: 100, height: 40 },
-    ],
-    desi_legacy: [
-      // DESI Legacy - north and south galactic caps
-      { type: "rect", ra: 180, dec: 32, width: 150, height: 50 },
-      { type: "rect", ra: 30, dec: -10, width: 100, height: 40 },
-    ],
-    hsc: [
-      // Hyper Suprime-Cam - several deep fields
-      { type: "circle", ra: 150, dec: 2, radius: 8 },    // COSMOS
-      { type: "circle", ra: 34, dec: -5, radius: 8 },    // XMM-LSS
-      { type: "circle", ra: 240, dec: 43, radius: 6 },   // HECTOMAP
-    ],
-    kids: [
-      // KiDS - two strips
-      { type: "rect", ra: 180, dec: -2, width: 70, height: 8 },
-      { type: "rect", ra: -30, dec: -32, width: 60, height: 8 },
-    ],
-    lsst_wfd: [
-      // LSST Wide-Fast-Deep - southern sky
-      { type: "rect", ra: 0, dec: -50, width: 300, height: 60 },
-    ],
-  };
-
-  const regions = surveyRegions[survey.id] || [];
-
-  if (regions.length > 0 && state.celestialPath && state.celestialProjection) {
-    regions.forEach((region, idx) => {
-      if (region.type === "circle") {
-        // Draw a circle approximation
-        const circle = d3.geoCircle()
-          .center([region.ra, region.dec])
-          .radius(region.radius);
-
-        mocGroup.append("path")
-          .datum(circle())
-          .attr("d", state.celestialPath)
-          .attr("fill", survey.color)
-          .attr("fill-opacity", 0.35)
-          .attr("stroke", survey.color)
-          .attr("stroke-width", 1)
-          .attr("stroke-opacity", 0.7);
-      } else if (region.type === "rect") {
-        // Draw a rectangle as a polygon
-        const ra = region.ra;
-        const dec = region.dec;
-        const w = region.width / 2;
-        const h = region.height / 2;
-
-        const polygon = {
-          type: "Polygon",
-          coordinates: [[
-            [ra - w, dec - h],
-            [ra + w, dec - h],
-            [ra + w, dec + h],
-            [ra - w, dec + h],
-            [ra - w, dec - h],
-          ]]
-        };
-
-        mocGroup.append("path")
-          .datum(polygon)
-          .attr("d", state.celestialPath)
-          .attr("fill", survey.color)
-          .attr("fill-opacity", 0.3)
-          .attr("stroke", survey.color)
-          .attr("stroke-width", 1)
-          .attr("stroke-opacity", 0.6);
-      }
-    });
-  }
-
-  // Add legend entry
-  const container = elements.celestialContainer;
-  const width = container ? container.clientWidth : 800;
-  const surveyIndex = SURVEYS.findIndex(s => s.id === survey.id);
-  const yPos = 60 + surveyIndex * 22;
-
-  // Legend background
-  mocGroup.append("rect")
-    .attr("x", width - 200)
-    .attr("y", yPos - 12)
-    .attr("width", 190)
-    .attr("height", 18)
-    .attr("fill", "#0a0a1a")
-    .attr("fill-opacity", 0.8)
-    .attr("rx", 3);
-
-  // Legend color box
-  mocGroup.append("rect")
-    .attr("x", width - 195)
-    .attr("y", yPos - 9)
-    .attr("width", 12)
-    .attr("height", 12)
-    .attr("fill", survey.color)
-    .attr("fill-opacity", 0.7)
-    .attr("rx", 2);
-
-  // Legend text
-  mocGroup.append("text")
-    .attr("x", width - 178)
-    .attr("y", yPos)
-    .attr("fill", "#ccc")
-    .attr("font-family", "Space Grotesk, sans-serif")
-    .attr("font-size", "11px")
-    .text(`${survey.label} (~${(survey.areaSqDeg / 1000).toFixed(1)}k sq°)`);
-}
-
-async function loadGeoJson(survey) {
-  try {
-    const response = await fetch(survey.mocUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const geoJson = await response.json();
-    return geoJson;
-  } catch (error) {
-    console.error(`Failed to load GeoJSON for ${survey.label} from ${survey.mocUrl}:`, error);
-    return null;
+    console.error("Failed to set projection:", error);
+    showToast("Failed to change projection", "error", "projection", 2000);
   }
 }
 
@@ -952,11 +570,6 @@ function handleSurveyToggle(survey, isChecked) {
       scheduleRefreshMOCLayers();
     }
     showToast(`Removed ${survey.label}`, "success", survey.id, 1200);
-  }
-
-  // Also update celestial map if in celestial view
-  if (state.activeProjection !== "SIN" && state.celestialInitialized) {
-    initCelestialMap(state.activeProjection);
   }
 
   updateStats();
@@ -1210,7 +823,7 @@ async function loadSurveyMoc(survey) {
     return state.mocCache.get(survey.id);
   }
   const mocPromise = ensureMocWasm()
-    .then((moc) => moc.MOC.fromFitsUrl(survey.mocFitsUrl))
+    .then((moc) => moc.MOC.fromFitsUrl(survey.mocUrl))
     .then((mocInstance) => {
       state.mocCache.set(survey.id, Promise.resolve(mocInstance));
       return mocInstance;
