@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.css" />
     <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
     <script type="text/javascript" src="https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <!-- D3.js for equirectangular map -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -94,17 +96,28 @@
 
       <main class="map-panel">
         <div class="topbar">
-          <strong>Aladin Lite V2</strong>
-          <div class="projection-toggle">
-            <button class="projection-btn is-active" id="proj-globe" data-projection="SIN" title="Globe view (orthographic)">
-              Globe
+          <strong id="map-title">Aladin Lite V2</strong>
+          <div class="view-toggle">
+            <button class="view-btn is-active" id="view-aladin" data-view="aladin" title="Interactive globe view with Aladin Lite">
+              Aladin
             </button>
-            <button class="projection-btn" id="proj-aitoff" data-projection="AIT" title="Aitoff projection (all-sky)">
-              Aitoff
+            <button class="view-btn" id="view-equirect" data-view="equirectangular" title="Equirectangular projection (RA/Dec grid)">
+              Equirectangular
             </button>
-            <button class="projection-btn" id="proj-mollweide" data-projection="MOL" title="Mollweide projection (equal-area)">
-              Mollweide
-            </button>
+          </div>
+          <div class="equirect-controls" id="equirect-controls" style="display: none;">
+            <label class="control-checkbox">
+              <input type="checkbox" id="show-grid" checked />
+              <span>Grid</span>
+            </label>
+            <label class="control-checkbox">
+              <input type="checkbox" id="show-galactic" checked />
+              <span>Galactic</span>
+            </label>
+            <label class="control-checkbox">
+              <input type="checkbox" id="show-ecliptic" checked />
+              <span>Ecliptic</span>
+            </label>
           </div>
           <span id="map-status">Ready</span>
         </div>
@@ -114,6 +127,9 @@
         </div>
         <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
         <div id="aladin-lite-div" style="width: 100%; height: calc(100% - 40px);"></div>
+        <div id="equirectangular-map" style="width: 100%; height: calc(100% - 40px); display: none;">
+          <svg id="sky-map"></svg>
+        </div>
       </main>
     </div>
 
@@ -130,6 +146,6 @@
           throw error;
         });
     </script>
-    <script type="module" src="app.js?v=1.11.0"></script>
+    <script type="module" src="app.js?v=1.12.0"></script>
   </body>
 </html>
