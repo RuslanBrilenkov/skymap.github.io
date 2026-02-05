@@ -1,9 +1,10 @@
-// Version 1.11.0 - Add projection toggle (Globe/Aitoff/Mollweide)
-const VERSION = "1.11.0";
+// Version 1.12.0 - Add equirectangular map view with survey toggle
+const VERSION = "1.12.0";
 const BASE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
+const BASE_GEOJSON_URL = "./surveys/geojson/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
-const STORAGE_KEY = "sky-coverage-settings-v1";
+const STORAGE_KEY = "sky-coverage-settings-v2";
 const PERSIST_KEY = "sky-coverage-persist-enabled";
 
 const SURVEY_CONFIGS = [
@@ -12,63 +13,63 @@ const SURVEY_CONFIGS = [
     label: "Euclid DR1",
     description: "Euclid DR1 coverage map",
     mocUrl: `${BASE_MOC_URL}euclid_dr1_coverage_moc.fits`,
+    geojsonFile: "euclid_dr1_coverage_moc.geojson",
     opacity: 0.45,
-    // Pre-calculated area in square degrees (calculated using mocpy)
-    areaSqDeg: 2108.51,  // Sky fraction: 0.051112
+    areaSqDeg: 2108.51,
   },
   {
     id: "erass1",
     label: "eRASS1",
     description: "eROSITA All-Sky Survey footprint",
     mocUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.fits`,
+    geojsonFile: "erass1_clusters_coverage_moc.geojson",
     opacity: 0.45,
-    // Pre-calculated area in square degrees (calculated using mocpy)
-    areaSqDeg: 21524.45,  // Sky fraction: 0.521767
+    areaSqDeg: 21524.45,
   },
   {
     id: "des",
     label: "DES",
     description: "Dark Energy Survey footprint",
     mocUrl: `${BASE_MOC_URL}des_footprint_moc.fits`,
+    geojsonFile: "des_footprint_moc.geojson",
     opacity: 0.45,
-    // Pre-calculated area in square degrees (calculated using mocpy)
-    areaSqDeg: 5155.03,  // Sky fraction: 0.124962
+    areaSqDeg: 5155.03,
   },
   {
     id: "desi_legacy",
     label: "DESI Legacy DR9",
     description: "DESI Legacy Imaging Survey footprint",
     mocUrl: `${BASE_MOC_URL}desi_legacy_dr9_footprint_moc.fits`,
+    geojsonFile: "desi_legacy_dr9_footprint_moc.geojson",
     opacity: 0.45,
-    // Pre-calculated area in square degrees (calculated using mocpy)
-    areaSqDeg: 20813.05,  // Sky fraction: 0.504523
+    areaSqDeg: 20813.05,
   },
   {
     id: "hsc",
     label: "HSC",
     description: "Subaru Hyper Suprime-Cam survey footprint",
     mocUrl: `${BASE_MOC_URL}hsc_footprint_moc.fits`,
+    geojsonFile: "hsc_footprint_moc.geojson",
     opacity: 0.45,
-    // Pre-calculated area in square degrees (calculated using mocpy)
-    areaSqDeg: 1653.38,  // Sky fraction: 0.040079
+    areaSqDeg: 1653.38,
   },
   {
     id: "kids",
     label: "KiDS",
     description: "Kilo-Degree Survey (KiDS-450) footprint",
     mocUrl: `${BASE_MOC_URL}kids_footprint_moc.fits`,
+    geojsonFile: "kids_footprint_moc.geojson",
     opacity: 0.45,
-    // Pre-calculated area in square degrees (calculated using mocpy)
-    areaSqDeg: 362.68,  // Sky fraction: 0.008792
+    areaSqDeg: 362.68,
   },
   {
     id: "lsst_wfd",
     label: "LSST WFD",
     description: "LSST Wide-Fast-Deep footprint",
     mocUrl: `${BASE_MOC_URL}lsst_wfd_footprint_moc.fits`,
+    geojsonFile: "lsst_wfd_footprint_moc.geojson",
     opacity: 0.45,
-    // Pre-calculated area in square degrees (calculated using mocpy)
-    areaSqDeg: 17659.58,  // Sky fraction: 0.428080
+    areaSqDeg: 17659.58,
   },
 ];
 
@@ -129,8 +130,21 @@ const state = {
   isUpdatingCount: 0,
   activeTheme: "colorblind",
   activeProjection: "SIN",
+  activeView: "aladin",  // "aladin" or "equirectangular"
   dragSurveyId: null,
   mocWasmFailed: false,
+  // Equirectangular map state
+  eqMap: {
+    svg: null,
+    surveyGroup: null,
+    gridGroup: null,
+    overlayGroup: null,
+    labelGroup: null,
+    xScale: null,
+    yScale: null,
+    geojsonCache: new Map(),
+    initialized: false,
+  },
 };
 
 const elements = {
@@ -140,6 +154,7 @@ const elements = {
   coverageLog: document.getElementById("coverage-log"),
   mocStatus: document.getElementById("moc-status"),
   mapStatus: document.getElementById("map-status"),
+  mapTitle: document.getElementById("map-title"),
   downloadButton: document.getElementById("download-button"),
   resetButton: document.getElementById("reset-button"),
   mapPanel: document.querySelector(".map-panel"),
@@ -152,6 +167,15 @@ const elements = {
   persistToggle: document.getElementById("persist-toggle"),
   toastStack: document.getElementById("toast-stack"),
   projectionBtns: document.querySelectorAll(".projection-btn"),
+  // View toggle elements
+  viewBtns: document.querySelectorAll(".view-btn"),
+  aladinDiv: document.getElementById("aladin-lite-div"),
+  equirectDiv: document.getElementById("equirectangular-map"),
+  equirectControls: document.getElementById("equirect-controls"),
+  showGrid: document.getElementById("show-grid"),
+  showGalactic: document.getElementById("show-galactic"),
+  showEcliptic: document.getElementById("show-ecliptic"),
+  skyMapSvg: document.getElementById("sky-map"),
 };
 
 init();
@@ -221,10 +245,6 @@ async function init() {
   updateStats();
   renderLegend();
   updateSurveyToggleLabel();
-
-  if (state.selected.size > 0) {
-    scheduleRefreshMOCLayers();
-  }
 
   elements.resetButton.addEventListener("click", resetSelections);
   elements.downloadButton.addEventListener("click", handleDownload);
@@ -301,18 +321,52 @@ async function init() {
     });
   }
 
-  // Projection toggle buttons
-  if (elements.projectionBtns.length > 0) {
-    elements.projectionBtns.forEach((btn) => {
+  // View toggle buttons (Aladin vs Equirectangular)
+  if (elements.viewBtns.length > 0) {
+    elements.viewBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
-        const projection = btn.dataset.projection;
-        if (projection && projection !== state.activeProjection) {
-          setProjection(projection);
+        const view = btn.dataset.view;
+        if (view && view !== state.activeView) {
+          setActiveView(view);
         }
       });
     });
-    // Restore saved projection after Aladin is ready
-    updateProjectionButtons();
+    updateViewButtons();
+  }
+
+  // Equirectangular map controls
+  if (elements.showGrid) {
+    elements.showGrid.addEventListener("change", (e) => {
+      if (state.eqMap.gridGroup) {
+        state.eqMap.gridGroup.style("display", e.target.checked ? "block" : "none");
+      }
+    });
+  }
+  if (elements.showGalactic) {
+    elements.showGalactic.addEventListener("change", (e) => {
+      if (state.eqMap.overlayGroup) {
+        state.eqMap.overlayGroup.selectAll(".eq-galactic-plane, .galactic-marker")
+          .style("display", e.target.checked ? "block" : "none");
+      }
+    });
+  }
+  if (elements.showEcliptic) {
+    elements.showEcliptic.addEventListener("change", (e) => {
+      if (state.eqMap.overlayGroup) {
+        state.eqMap.overlayGroup.selectAll(".eq-ecliptic-plane, .ecliptic-marker")
+          .style("display", e.target.checked ? "block" : "none");
+      }
+    });
+  }
+
+  // Initialize equirectangular map
+  initEquirectangularMap();
+
+  // Apply restored view and load surveys
+  if (state.activeView !== "aladin") {
+    setActiveView(state.activeView);
+  } else if (state.selected.size > 0) {
+    scheduleRefreshMOCLayers();
   }
 }
 
@@ -460,7 +514,14 @@ function applyTheme(themeId) {
 
   renderSurveyList();
   renderLegend();
-  scheduleRefreshMOCLayers();
+
+  // Refresh the active view
+  if (state.activeView === "aladin") {
+    scheduleRefreshMOCLayers();
+  } else if (state.eqMap.initialized) {
+    refreshEqMapSurveys();
+  }
+
   persistSettings();
 }
 
@@ -556,19 +617,45 @@ function handleSurveyToggle(survey, isChecked) {
     showToast(`Loading ${survey.label}…`, "loading", survey.id);
     state.selected.add(survey.id);
     elements.coverageLog.textContent = `Loaded ${survey.label} coverage.`;
-    if (state.selected.size === 1) {
-      addSurveyLayer(survey);
-    } else {
-      scheduleRefreshMOCLayers();
+
+    // Update Aladin view
+    if (state.activeView === "aladin") {
+      if (state.selected.size === 1) {
+        addSurveyLayer(survey);
+      } else {
+        scheduleRefreshMOCLayers();
+      }
+    }
+
+    // Update Equirectangular view
+    if (state.activeView === "equirectangular" && state.eqMap.initialized) {
+      loadSurveyGeoJSON(survey).then(geojson => {
+        if (geojson) {
+          drawSurveyOnEqMap(survey, geojson);
+          const loadedItem = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"]`);
+          if (loadedItem) loadedItem.classList.remove("is-loading");
+          showToast(`Loaded ${survey.label}`, "success", survey.id, 1200);
+        }
+      });
     }
   } else {
     // Remove survey from selection
     state.selected.delete(survey.id);
     elements.coverageLog.textContent = `Removed ${survey.label} coverage.`;
-    const removed = removeSurveyLayer(survey.id);
-    if (!removed) {
-      scheduleRefreshMOCLayers();
+
+    // Update Aladin view
+    if (state.activeView === "aladin") {
+      const removed = removeSurveyLayer(survey.id);
+      if (!removed) {
+        scheduleRefreshMOCLayers();
+      }
     }
+
+    // Update Equirectangular view
+    if (state.eqMap.initialized) {
+      removeSurveyFromEqMap(survey.id);
+    }
+
     showToast(`Removed ${survey.label}`, "success", survey.id, 1200);
   }
 
@@ -919,6 +1006,11 @@ function resetSelections() {
     forceAladinRedraw();
   }
 
+  // Clear equirectangular map surveys
+  if (state.eqMap.initialized) {
+    clearEqMapSurveys();
+  }
+
   // Clear layer state
   state.layers.clear();
   endMapUpdate();
@@ -968,6 +1060,7 @@ function persistSettings() {
     const payload = {
       theme: state.activeTheme,
       projection: state.activeProjection,
+      view: state.activeView,
       selected: Array.from(state.selected),
       order: SURVEYS.map((survey) => survey.id),
     };
@@ -996,6 +1089,9 @@ function restoreSettings() {
       if (validProjections.includes(data.projection)) {
         state.activeProjection = data.projection;
       }
+    }
+    if (data.view && (data.view === "aladin" || data.view === "equirectangular")) {
+      state.activeView = data.view;
     }
     if (Array.isArray(data.order)) {
       const ordered = [];
@@ -1099,4 +1195,398 @@ function logStatus(message) {
   const timestamp = new Date().toLocaleTimeString();
   console.log(`[${timestamp}] ${message}`);
   elements.coverageLog.textContent = `[${timestamp}] ${message}`;
+}
+
+// ============================================================================
+// Equirectangular Map Functions
+// ============================================================================
+
+function initEquirectangularMap() {
+  if (!elements.skyMapSvg || typeof d3 === "undefined") {
+    console.warn("D3.js or SVG element not available for equirectangular map");
+    return;
+  }
+
+  const container = elements.equirectDiv;
+  if (!container) return;
+
+  // Get container dimensions
+  const rect = container.getBoundingClientRect();
+  const width = rect.width || 1200;
+  const height = rect.height || 600;
+
+  const margin = { top: 40, right: 50, bottom: 50, left: 60 };
+  const innerWidth = width - margin.left - margin.right;
+  const innerHeight = height - margin.top - margin.bottom;
+
+  // Create scales
+  state.eqMap.xScale = d3.scaleLinear().domain([0, 360]).range([0, innerWidth]);
+  state.eqMap.yScale = d3.scaleLinear().domain([-90, 90]).range([innerHeight, 0]);
+
+  // Setup SVG
+  const svg = d3.select(elements.skyMapSvg)
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  // Clear any existing content
+  svg.selectAll("*").remove();
+
+  // Background
+  svg.append("rect")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("fill", "#0b0f1f");
+
+  // Main group with margins
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+  // Map area background
+  g.append("rect")
+    .attr("width", innerWidth)
+    .attr("height", innerHeight)
+    .attr("fill", "#111730");
+
+  // Groups for layering (order matters for z-index)
+  state.eqMap.gridGroup = g.append("g").attr("class", "eq-grid-group");
+  state.eqMap.surveyGroup = g.append("g").attr("class", "eq-survey-group");
+  state.eqMap.overlayGroup = g.append("g").attr("class", "eq-overlay-group");
+  state.eqMap.labelGroup = g.append("g").attr("class", "eq-label-group");
+
+  state.eqMap.svg = svg;
+  state.eqMap.innerWidth = innerWidth;
+  state.eqMap.innerHeight = innerHeight;
+  state.eqMap.initialized = true;
+
+  // Draw static elements
+  drawEqGrid();
+  drawEqGalacticPlane();
+  drawEqEclipticPlane();
+
+  console.log("Equirectangular map initialized");
+}
+
+function drawEqGrid() {
+  const { gridGroup, xScale, yScale, innerWidth, innerHeight } = state.eqMap;
+  if (!gridGroup) return;
+
+  gridGroup.selectAll("*").remove();
+
+  // RA lines (every 30 degrees = 2 hours)
+  for (let ra = 0; ra <= 360; ra += 30) {
+    gridGroup.append("line")
+      .attr("class", "eq-grid-line")
+      .attr("x1", xScale(ra))
+      .attr("y1", 0)
+      .attr("x2", xScale(ra))
+      .attr("y2", innerHeight);
+  }
+
+  // Dec lines (every 30 degrees)
+  for (let dec = -90; dec <= 90; dec += 30) {
+    gridGroup.append("line")
+      .attr("class", "eq-grid-line")
+      .attr("x1", 0)
+      .attr("y1", yScale(dec))
+      .attr("x2", innerWidth)
+      .attr("y2", yScale(dec));
+  }
+
+  // RA labels (top - hours, bottom - degrees)
+  for (let ra = 0; ra <= 360; ra += 30) {
+    const hours = ra / 15;
+    gridGroup.append("text")
+      .attr("class", "eq-grid-label")
+      .attr("x", xScale(ra))
+      .attr("y", -8)
+      .attr("text-anchor", "middle")
+      .text(`${hours}h`);
+    gridGroup.append("text")
+      .attr("class", "eq-grid-label")
+      .attr("x", xScale(ra))
+      .attr("y", innerHeight + 16)
+      .attr("text-anchor", "middle")
+      .text(`${ra}°`);
+  }
+
+  // Dec labels (left side)
+  for (let dec = -90; dec <= 90; dec += 30) {
+    gridGroup.append("text")
+      .attr("class", "eq-grid-label")
+      .attr("x", -8)
+      .attr("y", yScale(dec))
+      .attr("text-anchor", "end")
+      .attr("dominant-baseline", "middle")
+      .text(`${dec > 0 ? "+" : ""}${dec}°`);
+  }
+
+  // Axis labels
+  state.eqMap.labelGroup.append("text")
+    .attr("class", "eq-axis-label")
+    .attr("x", innerWidth / 2)
+    .attr("y", -25)
+    .attr("text-anchor", "middle")
+    .text("Right Ascension (hours)");
+
+  state.eqMap.labelGroup.append("text")
+    .attr("class", "eq-axis-label")
+    .attr("x", innerWidth / 2)
+    .attr("y", innerHeight + 35)
+    .attr("text-anchor", "middle")
+    .text("Right Ascension (degrees)");
+
+  state.eqMap.labelGroup.append("text")
+    .attr("class", "eq-axis-label")
+    .attr("x", -innerHeight / 2)
+    .attr("y", -45)
+    .attr("text-anchor", "middle")
+    .attr("transform", "rotate(-90)")
+    .text("Declination");
+}
+
+function calculateGalacticPlane() {
+  const points = [];
+  const alphaGP = 192.85948 * Math.PI / 180;
+  const deltaGP = 27.12825 * Math.PI / 180;
+  const l0 = 122.932 * Math.PI / 180;
+
+  for (let l = 0; l <= 360; l += 1) {
+    const lRad = l * Math.PI / 180;
+    const b = 0;
+    const bRad = b * Math.PI / 180;
+
+    const sinDec = Math.sin(bRad) * Math.sin(deltaGP) +
+                   Math.cos(bRad) * Math.cos(deltaGP) * Math.sin(lRad - l0);
+    const dec = Math.asin(sinDec) * 180 / Math.PI;
+
+    const y = Math.cos(bRad) * Math.cos(lRad - l0);
+    const x = Math.sin(bRad) * Math.cos(deltaGP) -
+              Math.cos(bRad) * Math.sin(deltaGP) * Math.sin(lRad - l0);
+    let ra = Math.atan2(y, x) * 180 / Math.PI + alphaGP * 180 / Math.PI;
+    ra = ((ra % 360) + 360) % 360;
+
+    points.push([ra, dec]);
+  }
+  points.sort((a, b) => a[0] - b[0]);
+  return points;
+}
+
+function calculateEclipticPlane() {
+  const points = [];
+  const obliquity = 23.439281 * Math.PI / 180;
+
+  for (let eclLon = 0; eclLon <= 360; eclLon += 1) {
+    const lambda = eclLon * Math.PI / 180;
+    const sinDec = Math.sin(lambda) * Math.sin(obliquity);
+    const dec = Math.asin(sinDec) * 180 / Math.PI;
+    const y = Math.sin(lambda) * Math.cos(obliquity);
+    const x = Math.cos(lambda);
+    let ra = Math.atan2(y, x) * 180 / Math.PI;
+    ra = ((ra % 360) + 360) % 360;
+    points.push([ra, dec]);
+  }
+  points.sort((a, b) => a[0] - b[0]);
+  return points;
+}
+
+function drawEqGalacticPlane() {
+  const { overlayGroup, xScale, yScale } = state.eqMap;
+  if (!overlayGroup) return;
+
+  overlayGroup.selectAll(".eq-galactic-plane, .galactic-marker").remove();
+
+  const points = calculateGalacticPlane();
+  const segments = [];
+  let currentSegment = [points[0]];
+
+  for (let i = 1; i < points.length; i++) {
+    if (Math.abs(points[i][0] - points[i - 1][0]) > 90) {
+      segments.push(currentSegment);
+      currentSegment = [];
+    }
+    currentSegment.push(points[i]);
+  }
+  segments.push(currentSegment);
+
+  const line = d3.line()
+    .x(d => xScale(d[0]))
+    .y(d => yScale(d[1]));
+
+  segments.forEach(segment => {
+    if (segment.length > 1) {
+      overlayGroup.append("path")
+        .attr("class", "eq-galactic-plane")
+        .attr("d", line(segment));
+    }
+  });
+
+  // North Galactic Pole marker
+  overlayGroup.append("circle")
+    .attr("class", "galactic-marker")
+    .attr("cx", xScale(192.86))
+    .attr("cy", yScale(27.13))
+    .attr("r", 4)
+    .attr("fill", "#00bcd4");
+
+  overlayGroup.append("text")
+    .attr("class", "eq-pole-label galactic-marker")
+    .attr("x", xScale(192.86) + 8)
+    .attr("y", yScale(27.13) + 4)
+    .text("NGP");
+}
+
+function drawEqEclipticPlane() {
+  const { overlayGroup, xScale, yScale } = state.eqMap;
+  if (!overlayGroup) return;
+
+  overlayGroup.selectAll(".eq-ecliptic-plane, .ecliptic-marker").remove();
+
+  const points = calculateEclipticPlane();
+  const segments = [];
+  let currentSegment = [points[0]];
+
+  for (let i = 1; i < points.length; i++) {
+    if (Math.abs(points[i][0] - points[i - 1][0]) > 90) {
+      segments.push(currentSegment);
+      currentSegment = [];
+    }
+    currentSegment.push(points[i]);
+  }
+  segments.push(currentSegment);
+
+  const line = d3.line()
+    .x(d => xScale(d[0]))
+    .y(d => yScale(d[1]));
+
+  segments.forEach(segment => {
+    if (segment.length > 1) {
+      overlayGroup.append("path")
+        .attr("class", "eq-ecliptic-plane")
+        .attr("d", line(segment));
+    }
+  });
+
+  // North Ecliptic Pole marker
+  overlayGroup.append("circle")
+    .attr("class", "ecliptic-marker")
+    .attr("cx", xScale(270))
+    .attr("cy", yScale(66.56))
+    .attr("r", 4)
+    .attr("fill", "#ffc107");
+
+  overlayGroup.append("text")
+    .attr("class", "eq-pole-label ecliptic-marker")
+    .attr("x", xScale(270) + 8)
+    .attr("y", yScale(66.56) + 4)
+    .text("NEP");
+}
+
+async function loadSurveyGeoJSON(survey) {
+  if (state.eqMap.geojsonCache.has(survey.id)) {
+    return state.eqMap.geojsonCache.get(survey.id);
+  }
+
+  try {
+    const response = await fetch(BASE_GEOJSON_URL + survey.geojsonFile);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const geojson = await response.json();
+    state.eqMap.geojsonCache.set(survey.id, geojson);
+    return geojson;
+  } catch (error) {
+    console.error(`Failed to load GeoJSON for ${survey.label}:`, error);
+    return null;
+  }
+}
+
+function drawSurveyOnEqMap(survey, geojson) {
+  const { surveyGroup, xScale, yScale } = state.eqMap;
+  if (!surveyGroup || !geojson) return;
+
+  const feature = geojson.features[0];
+  const polygons = feature.geometry.coordinates;
+
+  polygons.forEach((polygon) => {
+    const ring = polygon[0];
+    const pathData = ring.map((coord, j) => {
+      const x = xScale(coord[0]);
+      const y = yScale(coord[1]);
+      return `${j === 0 ? "M" : "L"} ${x} ${y}`;
+    }).join(" ") + " Z";
+
+    surveyGroup.append("path")
+      .attr("class", `eq-survey-polygon survey-${survey.id}`)
+      .attr("d", pathData)
+      .attr("fill", survey.color)
+      .attr("fill-opacity", 0.4)
+      .attr("stroke", survey.color);
+  });
+}
+
+function removeSurveyFromEqMap(surveyId) {
+  const { surveyGroup } = state.eqMap;
+  if (!surveyGroup) return;
+  surveyGroup.selectAll(`.survey-${surveyId}`).remove();
+}
+
+function clearEqMapSurveys() {
+  const { surveyGroup } = state.eqMap;
+  if (!surveyGroup) return;
+  surveyGroup.selectAll(".eq-survey-polygon").remove();
+}
+
+async function refreshEqMapSurveys() {
+  if (!state.eqMap.initialized) return;
+
+  clearEqMapSurveys();
+
+  // Draw surveys in reverse order (first in list = on top)
+  const selectedSurveys = [...SURVEYS].reverse().filter(s => state.selected.has(s.id));
+
+  for (const survey of selectedSurveys) {
+    const geojson = await loadSurveyGeoJSON(survey);
+    if (geojson) {
+      drawSurveyOnEqMap(survey, geojson);
+    }
+  }
+}
+
+function setActiveView(view) {
+  if (view !== "aladin" && view !== "equirectangular") return;
+
+  state.activeView = view;
+  updateViewButtons();
+
+  if (view === "aladin") {
+    elements.aladinDiv.style.display = "block";
+    elements.equirectDiv.style.display = "none";
+    elements.equirectControls.style.display = "none";
+    elements.mapTitle.textContent = "Aladin Lite V2";
+    // Refresh MOC layers to sync with current selection
+    if (state.selected.size > 0) {
+      scheduleRefreshMOCLayers();
+    } else {
+      forceAladinRedraw();
+    }
+  } else {
+    elements.aladinDiv.style.display = "none";
+    elements.equirectDiv.style.display = "block";
+    elements.equirectControls.style.display = "flex";
+    elements.mapTitle.textContent = "Equirectangular Map";
+
+    // Reinitialize if needed (e.g., after resize)
+    if (!state.eqMap.initialized) {
+      initEquirectangularMap();
+    }
+    refreshEqMapSurveys();
+  }
+
+  persistSettings();
+  logStatus(`Switched to ${view === "aladin" ? "Aladin Lite" : "Equirectangular"} view.`);
+}
+
+function updateViewButtons() {
+  elements.viewBtns.forEach((btn) => {
+    const isActive = btn.dataset.view === state.activeView;
+    btn.classList.toggle("is-active", isActive);
+  });
 }
