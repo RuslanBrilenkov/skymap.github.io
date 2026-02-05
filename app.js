@@ -1505,53 +1505,100 @@ function drawSurveyOnEqMap(survey, geojson) {
   const feature = geojson.features[0];
   const polygons = feature.geometry.coordinates;
 
-  polygons.forEach((polygon) => {
-    const ring = polygon[0];
+  const splitRingAtSeam = (ring) => {
+    if (!ring || ring.length < 3) return [];
 
-    // Build path data, skipping edges that cross the RA=0/360 boundary
-    // This prevents horizontal lines spanning the entire map
-    const pathParts = [];
-    let needsMove = true;
+    const closed = ring.slice();
+    const first = closed[0];
+    const last = closed[closed.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      closed.push([first[0], first[1]]);
+    }
 
-    for (let j = 0; j < ring.length; j++) {
-      const coord = ring[j];
+    const segments = [];
+    let current = [];
+    const pushPoint = (pt) => {
+      const prev = current[current.length - 1];
+      if (!prev || prev[0] !== pt[0] || prev[1] !== pt[1]) {
+        current.push(pt);
+      }
+    };
+
+    pushPoint(closed[0]);
+
+    for (let i = 1; i < closed.length; i++) {
+      const prev = closed[i - 1];
+      const curr = closed[i];
+      const raDiff = curr[0] - prev[0];
+
+      if (Math.abs(raDiff) > 180) {
+        let adjustedCurr = curr[0];
+        let boundaryRa = 0;
+        let restartRa = 360;
+
+        if (prev[0] > curr[0]) {
+          adjustedCurr = curr[0] + 360;
+          boundaryRa = 360;
+          restartRa = 0;
+        } else {
+          adjustedCurr = curr[0] - 360;
+          boundaryRa = 0;
+          restartRa = 360;
+        }
+
+        const t = (boundaryRa - prev[0]) / (adjustedCurr - prev[0]);
+        const boundaryDec = prev[1] + t * (curr[1] - prev[1]);
+
+        pushPoint([boundaryRa, boundaryDec]);
+        if (current.length >= 3) {
+          segments.push(current);
+        }
+        current = [];
+        pushPoint([restartRa, boundaryDec]);
+      }
+
+      pushPoint(curr);
+    }
+
+    if (current.length >= 3) {
+      segments.push(current);
+    }
+
+    return segments;
+  };
+
+  const buildPathData = (segment) => {
+    if (!segment || segment.length < 3) return "";
+    const first = segment[0];
+    const last = segment[segment.length - 1];
+    const points = (first[0] === last[0] && first[1] === last[1])
+      ? segment.slice(0, -1)
+      : segment;
+
+    const pathParts = points.map((coord, idx) => {
       const x = xScale(coord[0]);
       const y = yScale(coord[1]);
+      return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
+    });
 
-      if (j > 0) {
-        const prevCoord = ring[j - 1];
-        const raDiff = Math.abs(coord[0] - prevCoord[0]);
+    return `${pathParts.join(" ")} Z`;
+  };
 
-        // If RA jump is > 180 degrees, this edge crosses the boundary
-        // Skip it by starting a new path segment
-        if (raDiff > 180) {
-          needsMove = true;
-        }
-      }
+  polygons.forEach((polygon) => {
+    const ring = polygon[0];
+    const segments = splitRingAtSeam(ring);
 
-      if (needsMove) {
-        pathParts.push(`M ${x} ${y}`);
-        needsMove = false;
-      } else {
-        pathParts.push(`L ${x} ${y}`);
-      }
-    }
+    segments.forEach((segment) => {
+      const pathData = buildPathData(segment);
+      if (!pathData) return;
 
-    // Close the path if it doesn't cross the boundary at the end
-    const firstCoord = ring[0];
-    const lastCoord = ring[ring.length - 1];
-    if (Math.abs(firstCoord[0] - lastCoord[0]) <= 180) {
-      pathParts.push("Z");
-    }
-
-    const pathData = pathParts.join(" ");
-
-    surveyGroup.append("path")
-      .attr("class", `eq-survey-polygon survey-${survey.id}`)
-      .attr("d", pathData)
-      .attr("fill", survey.color)
-      .attr("fill-opacity", 0.4)
-      .attr("stroke", survey.color);
+      surveyGroup.append("path")
+        .attr("class", `eq-survey-polygon survey-${survey.id}`)
+        .attr("d", pathData)
+        .attr("fill", survey.color)
+        .attr("fill-opacity", 0.4)
+        .attr("stroke", survey.color);
+    });
   });
 }
 
