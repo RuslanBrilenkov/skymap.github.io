@@ -598,6 +598,9 @@ function reorderSurveys(sourceId, targetId) {
   renderSurveyList();
   renderLegend();
   scheduleRefreshMOCLayers();
+  if (state.activeView === "equirectangular" && state.eqMap.initialized) {
+    refreshEqMapSurveys({ notify: false });
+  }
   persistSettings();
 }
 
@@ -629,14 +632,7 @@ function handleSurveyToggle(survey, isChecked) {
 
     // Update Equirectangular view
     if (state.activeView === "equirectangular" && state.eqMap.initialized) {
-      loadSurveyGeoJSON(survey).then(geojson => {
-        if (geojson) {
-          drawSurveyOnEqMap(survey, geojson);
-          const loadedItem = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"]`);
-          if (loadedItem) loadedItem.classList.remove("is-loading");
-          showToast(`Loaded ${survey.label}`, "success", survey.id, 1200);
-        }
-      });
+      refreshEqMapSurveys({ notify: true, focusId: survey.id });
     }
   } else {
     // Remove survey from selection
@@ -1614,18 +1610,32 @@ function clearEqMapSurveys() {
   surveyGroup.selectAll(".eq-survey-polygon").remove();
 }
 
-async function refreshEqMapSurveys() {
+async function refreshEqMapSurveys(options = {}) {
   if (!state.eqMap.initialized) return;
 
+  const { notify = false, focusId = null } = options;
   clearEqMapSurveys();
 
   // Draw surveys in reverse order (first in list = on top)
   const selectedSurveys = [...SURVEYS].reverse().filter(s => state.selected.has(s.id));
 
   for (const survey of selectedSurveys) {
+    const shouldNotify = notify && (!focusId || focusId === survey.id);
+    const surveyItem = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"]`);
+    if (shouldNotify && surveyItem) {
+      surveyItem.classList.add("is-loading");
+      showToast(`Loading ${survey.label}…`, "loading", survey.id);
+    }
     const geojson = await loadSurveyGeoJSON(survey);
     if (geojson) {
       drawSurveyOnEqMap(survey, geojson);
+      if (shouldNotify && surveyItem) {
+        surveyItem.classList.remove("is-loading");
+        showToast(`Loaded ${survey.label}`, "success", survey.id, 1200);
+      }
+    } else if (shouldNotify) {
+      if (surveyItem) surveyItem.classList.remove("is-loading");
+      showToast(`Failed to load ${survey.label}`, "error", survey.id, 2000);
     }
   }
 }
