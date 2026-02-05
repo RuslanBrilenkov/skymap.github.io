@@ -1507,11 +1507,44 @@ function drawSurveyOnEqMap(survey, geojson) {
 
   polygons.forEach((polygon) => {
     const ring = polygon[0];
-    const pathData = ring.map((coord, j) => {
+
+    // Build path data, skipping edges that cross the RA=0/360 boundary
+    // This prevents horizontal lines spanning the entire map
+    const pathParts = [];
+    let needsMove = true;
+
+    for (let j = 0; j < ring.length; j++) {
+      const coord = ring[j];
       const x = xScale(coord[0]);
       const y = yScale(coord[1]);
-      return `${j === 0 ? "M" : "L"} ${x} ${y}`;
-    }).join(" ") + " Z";
+
+      if (j > 0) {
+        const prevCoord = ring[j - 1];
+        const raDiff = Math.abs(coord[0] - prevCoord[0]);
+
+        // If RA jump is > 180 degrees, this edge crosses the boundary
+        // Skip it by starting a new path segment
+        if (raDiff > 180) {
+          needsMove = true;
+        }
+      }
+
+      if (needsMove) {
+        pathParts.push(`M ${x} ${y}`);
+        needsMove = false;
+      } else {
+        pathParts.push(`L ${x} ${y}`);
+      }
+    }
+
+    // Close the path if it doesn't cross the boundary at the end
+    const firstCoord = ring[0];
+    const lastCoord = ring[ring.length - 1];
+    if (Math.abs(firstCoord[0] - lastCoord[0]) <= 180) {
+      pathParts.push("Z");
+    }
+
+    const pathData = pathParts.join(" ");
 
     surveyGroup.append("path")
       .attr("class", `eq-survey-polygon survey-${survey.id}`)
