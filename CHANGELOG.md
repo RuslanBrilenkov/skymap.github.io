@@ -15,6 +15,19 @@
 
 ---
 
+## 2026-02-05 - Equirectangular Layer Ordering
+
+### Updates
+- Equirectangular map now draws survey layers according to the survey dropdown order.
+- The top item in the list is painted last so it appears on top, matching Aladin stacking behavior.
+
+### Code Changes
+**app.js**:
+- `refreshEqMapSurveys()` now re-renders using the list order and supports optional notifications.
+- Reordering and equirectangular selections trigger a re-render to maintain stacking.
+
+---
+
 ## 2026-02-04 - Projection Toggle (v1.11.0)
 
 ### New Features
