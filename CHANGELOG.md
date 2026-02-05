@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-02-05 - Equirectangular Seam Wrap Fix
+
+### Fixes
+- Split equirectangular survey polygons at the RA=0/360 seam and insert boundary points to prevent wraparound parallel-line artifacts.
+- Render each split segment as its own closed path to avoid SVG implicit seam closures.
+
+### Code Changes
+**app.js**:
+- Updated `drawSurveyOnEqMap()` to split rings at the seam and render multiple segments.
+
+**equirectangular-map.html**:
+- Mirrored the seam-splitting logic for the standalone demo page.
+
+---
+
 ## 2026-02-04 - Projection Toggle (v1.11.0)
 
 ### New Features
