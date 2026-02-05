@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sky Coverage - Equirectangular Map</title>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0d1117;
+      --bg-panel: #161b22;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --border-color: #30363d;
+      --accent: #58a6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .map-container {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    #sky-map {
+      width: 100%;
+      height: auto;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 12px 16px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.875rem;
+    }
+
+    .legend-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+    }
+
+    .legend-line {
+      width: 24px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    /* SVG Styles */
+    .grid-line {
+      stroke: #30363d;
+      stroke-width: 0.5;
+      fill: none;
+    }
+
+    .grid-label {
+      fill: var(--text-secondary);
+      font-size: 10px;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .galactic-plane {
+      stroke: #00bcd4;
+      stroke-width: 1.5;
+      stroke-dasharray: 5, 3;
+      fill: none;
+    }
+
+    .ecliptic-plane {
+      stroke: #ffc107;
+      stroke-width: 1.5;
+      fill: none;
+    }
+
+    .survey-polygon {
+      stroke-width: 0.5;
+      stroke-opacity: 0.8;
+    }
+
+    .pole-label {
+      fill: var(--text-secondary);
+      font-size: 11px;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .axis-label {
+      fill: var(--text-primary);
+      font-size: 12px;
+      font-family: "Space Grotesk", sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Sky Survey Coverage Map</h1>
+    <p class="subtitle">Equirectangular projection showing survey footprints in equatorial coordinates</p>
+
+    <div class="controls">
+      <div class="control-group">
+        <input type="checkbox" id="show-grid" checked />
+        <label for="show-grid">Coordinate Grid</label>
+      </div>
+      <div class="control-group">
+        <input type="checkbox" id="show-galactic" checked />
+        <label for="show-galactic">Galactic Plane</label>
+      </div>
+      <div class="control-group">
+        <input type="checkbox" id="show-ecliptic" checked />
+        <label for="show-ecliptic">Ecliptic Plane</label>
+      </div>
+    </div>
+
+    <div class="map-container">
+      <svg id="sky-map"></svg>
+    </div>
+
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <script type="module">
+    // Survey configuration with colors
+    const SURVEYS = [
+      { id: "euclid", label: "Euclid DR1", color: "#0072B2", file: "euclid_dr1_coverage_moc.geojson" },
+      { id: "erass1", label: "eRASS1", color: "#D55E00", file: "erass1_clusters_coverage_moc.geojson" },
+      { id: "des", label: "DES", color: "#E69F00", file: "des_footprint_moc.geojson" },
+      { id: "desi_legacy", label: "DESI Legacy DR9", color: "#009E73", file: "desi_legacy_dr9_footprint_moc.geojson" },
+      { id: "hsc", label: "HSC", color: "#56B4E9", file: "hsc_footprint_moc.geojson" },
+      { id: "kids", label: "KiDS", color: "#CC79A7", file: "kids_footprint_moc.geojson" },
+      { id: "lsst_wfd", label: "LSST WFD", color: "#F0E442", file: "lsst_wfd_footprint_moc.geojson" },
+    ];
+
+    const BASE_GEOJSON_URL = "./surveys/geojson/";
+
+    // Map dimensions
+    const margin = { top: 40, right: 60, bottom: 60, left: 60 };
+    const width = 1200;
+    const height = 600;
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    // Create scales
+    // RA: 0 to 360 degrees (or 0h to 24h)
+    // Dec: -90 to +90 degrees
+    const xScale = d3.scaleLinear()
+      .domain([0, 360])
+      .range([0, innerWidth]);
+
+    const yScale = d3.scaleLinear()
+      .domain([-90, 90])
+      .range([innerHeight, 0]);
+
+    // Setup SVG
+    const svg = d3.select("#sky-map")
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet");
+
+    // Background
+    svg.append("rect")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("fill", "#0d1117");
+
+    // Main group with margins
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+    // Map area background
+    g.append("rect")
+      .attr("width", innerWidth)
+      .attr("height", innerHeight)
+      .attr("fill", "#161b22");
+
+    // Groups for layering
+    const gridGroup = g.append("g").attr("class", "grid-group");
+    const surveyGroup = g.append("g").attr("class", "survey-group");
+    const overlayGroup = g.append("g").attr("class", "overlay-group");
+    const labelGroup = g.append("g").attr("class", "label-group");
+
+    // Draw coordinate grid
+    function drawGrid() {
+      gridGroup.selectAll("*").remove();
+
+      // RA lines (every 30 degrees = 2 hours)
+      for (let ra = 0; ra <= 360; ra += 30) {
+        gridGroup.append("line")
+          .attr("class", "grid-line")
+          .attr("x1", xScale(ra))
+          .attr("y1", 0)
+          .attr("x2", xScale(ra))
+          .attr("y2", innerHeight);
+      }
+
+      // Dec lines (every 30 degrees)
+      for (let dec = -90; dec <= 90; dec += 30) {
+        gridGroup.append("line")
+          .attr("class", "grid-line")
+          .attr("x1", 0)
+          .attr("y1", yScale(dec))
+          .attr("x2", innerWidth)
+          .attr("y2", yScale(dec));
+      }
+
+      // RA labels (top - hours, bottom - degrees)
+      for (let ra = 0; ra <= 360; ra += 30) {
+        const hours = ra / 15;
+        // Top labels (hours)
+        gridGroup.append("text")
+          .attr("class", "grid-label")
+          .attr("x", xScale(ra))
+          .attr("y", -8)
+          .attr("text-anchor", "middle")
+          .text(`${hours}h`);
+        // Bottom labels (degrees)
+        gridGroup.append("text")
+          .attr("class", "grid-label")
+          .attr("x", xScale(ra))
+          .attr("y", innerHeight + 16)
+          .attr("text-anchor", "middle")
+          .text(`${ra}°`);
+      }
+
+      // Dec labels (left side)
+      for (let dec = -90; dec <= 90; dec += 30) {
+        gridGroup.append("text")
+          .attr("class", "grid-label")
+          .attr("x", -8)
+          .attr("y", yScale(dec))
+          .attr("text-anchor", "end")
+          .attr("dominant-baseline", "middle")
+          .text(`${dec > 0 ? "+" : ""}${dec}°`);
+      }
+
+      // Axis labels
+      labelGroup.append("text")
+        .attr("class", "axis-label")
+        .attr("x", innerWidth / 2)
+        .attr("y", -25)
+        .attr("text-anchor", "middle")
+        .text("Right Ascension");
+
+      labelGroup.append("text")
+        .attr("class", "axis-label")
+        .attr("x", innerWidth / 2)
+        .attr("y", innerHeight + 40)
+        .attr("text-anchor", "middle")
+        .text("Right Ascension (degrees)");
+
+      labelGroup.append("text")
+        .attr("class", "axis-label")
+        .attr("x", -innerHeight / 2)
+        .attr("y", -45)
+        .attr("text-anchor", "middle")
+        .attr("transform", "rotate(-90)")
+        .text("Declination");
+    }
+
+    // Calculate galactic plane in equatorial coordinates
+    function calculateGalacticPlane() {
+      const points = [];
+      // Galactic plane is at b=0 in galactic coordinates
+      // Convert galactic (l, b=0) to equatorial (ra, dec)
+      for (let l = 0; l <= 360; l += 1) {
+        const lRad = l * Math.PI / 180;
+
+        // Galactic to Equatorial transformation
+        // Using standard galactic pole and center coordinates
+        const alphaGP = 192.85948 * Math.PI / 180;  // RA of galactic north pole
+        const deltaGP = 27.12825 * Math.PI / 180;   // Dec of galactic north pole
+        const l0 = 122.932 * Math.PI / 180;         // Galactic longitude of ascending node
+
+        const b = 0;  // Galactic latitude = 0 for the plane
+        const bRad = b * Math.PI / 180;
+
+        // Convert galactic to equatorial
+        const sinDec = Math.sin(bRad) * Math.sin(deltaGP) +
+                       Math.cos(bRad) * Math.cos(deltaGP) * Math.sin(lRad - l0);
+        const dec = Math.asin(sinDec) * 180 / Math.PI;
+
+        const y = Math.cos(bRad) * Math.cos(lRad - l0);
+        const x = Math.sin(bRad) * Math.cos(deltaGP) -
+                  Math.cos(bRad) * Math.sin(deltaGP) * Math.sin(lRad - l0);
+        let ra = Math.atan2(y, x) * 180 / Math.PI + alphaGP * 180 / Math.PI;
+        ra = ((ra % 360) + 360) % 360;  // Normalize to 0-360
+
+        points.push([ra, dec]);
+      }
+
+      // Sort by RA for proper line drawing
+      points.sort((a, b) => a[0] - b[0]);
+      return points;
+    }
+
+    // Calculate ecliptic plane in equatorial coordinates
+    function calculateEclipticPlane() {
+      const points = [];
+      const obliquity = 23.439281 * Math.PI / 180;  // Earth's axial tilt
+
+      for (let eclLon = 0; eclLon <= 360; eclLon += 1) {
+        const lambda = eclLon * Math.PI / 180;
+
+        // Ecliptic to Equatorial transformation
+        const sinDec = Math.sin(lambda) * Math.sin(obliquity);
+        const dec = Math.asin(sinDec) * 180 / Math.PI;
+
+        const y = Math.sin(lambda) * Math.cos(obliquity);
+        const x = Math.cos(lambda);
+        let ra = Math.atan2(y, x) * 180 / Math.PI;
+        ra = ((ra % 360) + 360) % 360;  // Normalize to 0-360
+
+        points.push([ra, dec]);
+      }
+
+      points.sort((a, b) => a[0] - b[0]);
+      return points;
+    }
+
+    // Draw galactic plane
+    function drawGalacticPlane() {
+      overlayGroup.selectAll(".galactic-plane").remove();
+      overlayGroup.selectAll(".galactic-pole").remove();
+
+      const points = calculateGalacticPlane();
+
+      // Split into segments to handle wrapping
+      const segments = [];
+      let currentSegment = [points[0]];
+
+      for (let i = 1; i < points.length; i++) {
+        const prevRA = points[i - 1][0];
+        const currRA = points[i][0];
+        // If there's a big jump in RA, start a new segment
+        if (Math.abs(currRA - prevRA) > 90) {
+          segments.push(currentSegment);
+          currentSegment = [];
+        }
+        currentSegment.push(points[i]);
+      }
+      segments.push(currentSegment);
+
+      // Draw each segment
+      const line = d3.line()
+        .x(d => xScale(d[0]))
+        .y(d => yScale(d[1]));
+
+      segments.forEach(segment => {
+        if (segment.length > 1) {
+          overlayGroup.append("path")
+            .attr("class", "galactic-plane")
+            .attr("d", line(segment));
+        }
+      });
+
+      // Mark galactic poles
+      // North Galactic Pole: RA = 192.86°, Dec = +27.13°
+      // South Galactic Pole: RA = 12.86°, Dec = -27.13°
+      overlayGroup.append("circle")
+        .attr("class", "galactic-pole")
+        .attr("cx", xScale(192.86))
+        .attr("cy", yScale(27.13))
+        .attr("r", 4)
+        .attr("fill", "#00bcd4");
+
+      overlayGroup.append("text")
+        .attr("class", "pole-label")
+        .attr("x", xScale(192.86) + 8)
+        .attr("y", yScale(27.13) + 4)
+        .text("NGP");
+    }
+
+    // Draw ecliptic plane
+    function drawEclipticPlane() {
+      overlayGroup.selectAll(".ecliptic-plane").remove();
+      overlayGroup.selectAll(".ecliptic-pole").remove();
+
+      const points = calculateEclipticPlane();
+
+      // Split into segments to handle wrapping
+      const segments = [];
+      let currentSegment = [points[0]];
+
+      for (let i = 1; i < points.length; i++) {
+        const prevRA = points[i - 1][0];
+        const currRA = points[i][0];
+        if (Math.abs(currRA - prevRA) > 90) {
+          segments.push(currentSegment);
+          currentSegment = [];
+        }
+        currentSegment.push(points[i]);
+      }
+      segments.push(currentSegment);
+
+      const line = d3.line()
+        .x(d => xScale(d[0]))
+        .y(d => yScale(d[1]));
+
+      segments.forEach(segment => {
+        if (segment.length > 1) {
+          overlayGroup.append("path")
+            .attr("class", "ecliptic-plane")
+            .attr("d", line(segment));
+        }
+      });
+
+      // North Ecliptic Pole: RA = 270°, Dec = +66.56°
+      overlayGroup.append("circle")
+        .attr("class", "ecliptic-pole")
+        .attr("cx", xScale(270))
+        .attr("cy", yScale(66.56))
+        .attr("r", 4)
+        .attr("fill", "#ffc107");
+
+      overlayGroup.append("text")
+        .attr("class", "pole-label")
+        .attr("x", xScale(270) + 8)
+        .attr("y", yScale(66.56) + 4)
+        .text("NEP");
+    }
+
+    // Load and draw survey GeoJSON
+    async function loadSurvey(survey) {
+      try {
+        const response = await fetch(BASE_GEOJSON_URL + survey.file);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const geojson = await response.json();
+        return geojson;
+      } catch (error) {
+        console.error(`Failed to load ${survey.label}:`, error);
+        return null;
+      }
+    }
+
+    function drawSurvey(survey, geojson) {
+      const feature = geojson.features[0];
+      const polygons = feature.geometry.coordinates;
+
+      polygons.forEach((polygon, i) => {
+        const ring = polygon[0];  // Outer ring
+
+        // Convert GeoJSON coordinates to screen coordinates
+        const pathData = ring.map((coord, j) => {
+          const x = xScale(coord[0]);
+          const y = yScale(coord[1]);
+          return `${j === 0 ? "M" : "L"} ${x} ${y}`;
+        }).join(" ") + " Z";
+
+        surveyGroup.append("path")
+          .attr("class", `survey-polygon survey-${survey.id}`)
+          .attr("d", pathData)
+          .attr("fill", survey.color)
+          .attr("fill-opacity", 0.4)
+          .attr("stroke", survey.color);
+      });
+    }
+
+    // Build legend
+    function buildLegend() {
+      const legend = document.getElementById("legend");
+
+      SURVEYS.forEach(survey => {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+
+        const swatch = document.createElement("span");
+        swatch.className = "legend-swatch";
+        swatch.style.backgroundColor = survey.color;
+
+        const label = document.createElement("span");
+        label.textContent = survey.label;
+
+        item.appendChild(swatch);
+        item.appendChild(label);
+        legend.appendChild(item);
+      });
+
+      // Add galactic plane to legend
+      const galacticItem = document.createElement("div");
+      galacticItem.className = "legend-item";
+      const galacticLine = document.createElement("span");
+      galacticLine.className = "legend-line";
+      galacticLine.style.backgroundColor = "#00bcd4";
+      galacticLine.style.borderStyle = "dashed";
+      const galacticLabel = document.createElement("span");
+      galacticLabel.textContent = "Galactic Plane";
+      galacticItem.appendChild(galacticLine);
+      galacticItem.appendChild(galacticLabel);
+      legend.appendChild(galacticItem);
+
+      // Add ecliptic plane to legend
+      const eclipticItem = document.createElement("div");
+      eclipticItem.className = "legend-item";
+      const eclipticLine = document.createElement("span");
+      eclipticLine.className = "legend-line";
+      eclipticLine.style.backgroundColor = "#ffc107";
+      const eclipticLabel = document.createElement("span");
+      eclipticLabel.textContent = "Ecliptic Plane";
+      eclipticItem.appendChild(eclipticLine);
+      eclipticItem.appendChild(eclipticLabel);
+      legend.appendChild(eclipticItem);
+    }
+
+    // Toggle handlers
+    document.getElementById("show-grid").addEventListener("change", (e) => {
+      gridGroup.style("display", e.target.checked ? "block" : "none");
+    });
+
+    document.getElementById("show-galactic").addEventListener("change", (e) => {
+      overlayGroup.selectAll(".galactic-plane, .galactic-pole").style("display", e.target.checked ? "block" : "none");
+      labelGroup.selectAll("text").filter(function() {
+        return d3.select(this).text() === "NGP";
+      }).style("display", e.target.checked ? "block" : "none");
+    });
+
+    document.getElementById("show-ecliptic").addEventListener("change", (e) => {
+      overlayGroup.selectAll(".ecliptic-plane, .ecliptic-pole").style("display", e.target.checked ? "block" : "none");
+      labelGroup.selectAll("text").filter(function() {
+        return d3.select(this).text() === "NEP";
+      }).style("display", e.target.checked ? "block" : "none");
+    });
+
+    // Initialize
+    async function init() {
+      drawGrid();
+      buildLegend();
+
+      // Load all surveys
+      for (const survey of SURVEYS) {
+        const geojson = await loadSurvey(survey);
+        if (geojson) {
+          drawSurvey(survey, geojson);
+        }
+      }
+
+      // Draw overlays on top
+      drawGalacticPlane();
+      drawEclipticPlane();
+
+      console.log("Map initialized");
+    }
+
+    init();
+  </script>
+</body>
+</html>
