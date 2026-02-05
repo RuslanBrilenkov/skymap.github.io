@@ -413,7 +413,8 @@ body {
   font-size: 0.9rem;
 }
 
-.projection-toggle {
+.projection-toggle,
+.view-toggle {
   display: flex;
   gap: 4px;
   background: rgba(255, 255, 255, 0.06);
@@ -422,7 +423,8 @@ body {
   border: 1px solid var(--border);
 }
 
-.projection-btn {
+.projection-btn,
+.view-btn {
   padding: 6px 12px;
   border: none;
   border-radius: 7px;
@@ -435,19 +437,106 @@ body {
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.projection-btn:hover:not(.is-active) {
+.projection-btn:hover:not(.is-active),
+.view-btn:hover:not(.is-active) {
   background: rgba(255, 255, 255, 0.08);
   color: var(--ink);
 }
 
-.projection-btn.is-active {
+.projection-btn.is-active,
+.view-btn.is-active {
   background: rgba(125, 231, 198, 0.2);
   color: var(--accent-2);
 }
 
-.projection-btn:focus-visible {
+.projection-btn:focus-visible,
+.view-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Equirectangular map controls */
+.equirect-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.control-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.control-checkbox input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent-2);
+}
+
+.control-checkbox:hover {
+  color: var(--ink);
+}
+
+/* Equirectangular map container */
+#equirectangular-map {
+  background: var(--bg-ink);
+  overflow: hidden;
+}
+
+#equirectangular-map svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* SVG map styles */
+.eq-grid-line {
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 0.5;
+  fill: none;
+}
+
+.eq-grid-label {
+  fill: var(--ink-muted);
+  font-size: 10px;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.eq-galactic-plane {
+  stroke: #00bcd4;
+  stroke-width: 1.5;
+  stroke-dasharray: 5, 3;
+  fill: none;
+}
+
+.eq-ecliptic-plane {
+  stroke: #ffc107;
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.eq-survey-polygon {
+  stroke-width: 0.5;
+  stroke-opacity: 0.8;
+}
+
+.eq-pole-marker {
+  fill: currentColor;
+}
+
+.eq-pole-label {
+  fill: var(--ink-muted);
+  font-size: 10px;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.eq-axis-label {
+  fill: var(--ink);
+  font-size: 11px;
+  font-family: "Space Grotesk", sans-serif;
 }
 
 #aladin-lite-div {
