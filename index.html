@@ -15,6 +15,9 @@
     <link rel="stylesheet" href="https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.css" />
     <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
     <script type="text/javascript" src="https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+    <!-- D3.js for flat projections (Aitoff, Mollweide) -->
+    <script type="text/javascript" src="https://d3js.org/d3.v7.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="https://d3js.org/d3-geo-projection.v4.min.js" charset="utf-8"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -96,13 +99,13 @@
         <div class="topbar">
           <strong>Aladin Lite V2</strong>
           <div class="projection-toggle">
-            <button class="projection-btn is-active" id="proj-globe" data-projection="SIN" title="Globe view (orthographic)">
+            <button class="projection-btn is-active" id="proj-globe" data-projection="SIN" title="Globe view (Aladin Lite)">
               Globe
             </button>
-            <button class="projection-btn" id="proj-aitoff" data-projection="AIT" title="Aitoff projection (all-sky)">
+            <button class="projection-btn" id="proj-aitoff" data-projection="AIT" title="Aitoff all-sky projection">
               Aitoff
             </button>
-            <button class="projection-btn" id="proj-mollweide" data-projection="MOL" title="Mollweide projection (equal-area)">
+            <button class="projection-btn" id="proj-mollweide" data-projection="MOL" title="Mollweide equal-area projection">
               Mollweide
             </button>
           </div>
@@ -113,7 +116,8 @@
           <span>Updating map…</span>
         </div>
         <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
-        <div id="aladin-lite-div" style="width: 100%; height: calc(100% - 40px);"></div>
+        <div id="aladin-lite-div" class="map-container is-active" style="width: 100%; height: calc(100% - 40px);"></div>
+        <div id="celestial-map" class="map-container" style="width: 100%; height: calc(100% - 40px);"></div>
       </main>
     </div>
 
@@ -130,6 +134,6 @@
           throw error;
         });
     </script>
-    <script type="module" src="app.js?v=1.11.0"></script>
+    <script type="module" src="app.js?v=1.15.0"></script>
   </body>
 </html>
