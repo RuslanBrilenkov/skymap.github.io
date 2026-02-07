@@ -11,6 +11,7 @@ Interactive web app for visualizing survey sky coverage MOCs in Aladin Lite.
 - HSC (`hsc_footprint_moc.fits`)
 - KiDS (`kids_footprint_moc.fits`)
 - LSST WFD (`lsst_wfd_footprint_moc.fits`)
+- UNIONS (`unions_footprint_moc.fits`)
 
 MOC files live in `surveys/` and are loaded by `app.js`.
 
