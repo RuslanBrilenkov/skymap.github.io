@@ -1,7 +1,14 @@
-// Version 1.12.0 - Add equirectangular map view with survey toggle
-const VERSION = "1.12.0";
-const BASE_MOC_URL =
+// Version 1.12.1 - Add UNIONS survey
+const VERSION = "1.12.1";
+const FULL_SKY_AREA_SQ_DEG = 41252.96;
+const LOCAL_MOC_URL = "./surveys/";
+const REMOTE_MOC_URL =
   "https://ruslanbrilenkov.github.io/skymap.github.io/surveys/";
+const BASE_MOC_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? LOCAL_MOC_URL
+    : REMOTE_MOC_URL;
 const BASE_GEOJSON_URL = "./surveys/geojson/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
 const STORAGE_KEY = "sky-coverage-settings-v2";
@@ -15,7 +22,6 @@ const SURVEY_CONFIGS = [
     mocUrl: `${BASE_MOC_URL}kids_footprint_moc.fits`,
     geojsonFile: "kids_footprint_moc.geojson",
     opacity: 0.45,
-    areaSqDeg: 362.68,
   },
   {
     id: "euclid",
@@ -24,7 +30,6 @@ const SURVEY_CONFIGS = [
     mocUrl: `${BASE_MOC_URL}euclid_dr1_coverage_moc.fits`,
     geojsonFile: "euclid_dr1_coverage_moc.geojson",
     opacity: 0.45,
-    areaSqDeg: 2108.51,
   },
   {
     id: "hsc",
@@ -33,7 +38,6 @@ const SURVEY_CONFIGS = [
     mocUrl: `${BASE_MOC_URL}hsc_footprint_moc.fits`,
     geojsonFile: "hsc_footprint_moc.geojson",
     opacity: 0.45,
-    areaSqDeg: 1653.38,
   },
   {
     id: "des",
@@ -42,7 +46,14 @@ const SURVEY_CONFIGS = [
     mocUrl: `${BASE_MOC_URL}des_footprint_moc.fits`,
     geojsonFile: "des_footprint_moc.geojson",
     opacity: 0.45,
-    areaSqDeg: 5155.03,
+  },
+  {
+    id: "unions",
+    label: "UNIONS",
+    description: "UNIONS survey footprint",
+    mocUrl: `${BASE_MOC_URL}unions_footprint_moc.fits`,
+    geojsonFile: "unions_footprint_moc.geojson",
+    opacity: 0.45,
   },
   {
     id: "desi_legacy",
@@ -51,7 +62,6 @@ const SURVEY_CONFIGS = [
     mocUrl: `${BASE_MOC_URL}desi_legacy_dr9_footprint_moc.fits`,
     geojsonFile: "desi_legacy_dr9_footprint_moc.geojson",
     opacity: 0.45,
-    areaSqDeg: 20813.05,
   },
   {
     id: "erass1",
@@ -60,7 +70,6 @@ const SURVEY_CONFIGS = [
     mocUrl: `${BASE_MOC_URL}erass1_clusters_coverage_moc.fits`,
     geojsonFile: "erass1_clusters_coverage_moc.geojson",
     opacity: 0.45,
-    areaSqDeg: 21524.45,
   },
   {
     id: "lsst_wfd",
@@ -69,7 +78,6 @@ const SURVEY_CONFIGS = [
     mocUrl: `${BASE_MOC_URL}lsst_wfd_footprint_moc.fits`,
     geojsonFile: "lsst_wfd_footprint_moc.geojson",
     opacity: 0.45,
-    areaSqDeg: 17659.58,
   },
 ];
 
@@ -80,6 +88,7 @@ const COLOR_THEMES = {
       euclid: "#7de7c6",
       erass1: "#ff6b6b",
       des: "#f7931a",
+      unions: "#f9b25c",
       desi_legacy: "#f5b352",
       hsc: "#7a7aed",
       kids: "#4cbcac",
@@ -92,6 +101,7 @@ const COLOR_THEMES = {
       euclid: "#0072B2",
       erass1: "#D55E00",
       des: "#E69F00",
+      unions: "#F0E442",
       desi_legacy: "#009E73",
       hsc: "#56B4E9",
       kids: "#009E73",
@@ -104,6 +114,7 @@ const COLOR_THEMES = {
       euclid: "#9ad9c7",
       erass1: "#f4a7b9",
       des: "#f4c199",
+      unions: "#f5d1a9",
       desi_legacy: "#f2c2a2",
       hsc: "#c1c6f2",
       kids: "#bfe7df",
@@ -126,6 +137,7 @@ const state = {
   mocWasm: null,
   mocCache: new Map(),
   intersectionToken: 0,
+  singleAreaToken: 0,
   refreshTimer: null,
   isUpdatingCount: 0,
   activeTheme: "colorblind",
@@ -145,6 +157,7 @@ const state = {
     geojsonCache: new Map(),
     initialized: false,
   },
+  areaCache: new Map(),
 };
 
 const elements = {
@@ -858,16 +871,9 @@ function updateStats() {
     const survey = SURVEYS.find(s => s.id === surveyId);
 
     console.log(`Found survey: ${survey ? survey.label : 'not found'}`);
-    console.log(`Survey area: ${survey ? survey.areaSqDeg : 'N/A'}`);
-
-    if (survey && survey.areaSqDeg) {
-      const areaText = survey.areaSqDeg.toFixed(2);
-      elements.intersectionArea.textContent = areaText;
-      console.log(`Area set to: ${areaText}`);
-    } else {
-      elements.intersectionArea.textContent = "--";
-      console.log("Area set to '--' (survey not found or no area)");
-    }
+    elements.intersectionArea.textContent = "computing...";
+    const token = ++state.singleAreaToken;
+    updateSingleSurveyArea(survey, token);
     elements.downloadButton.disabled = true;
     return;
   }
@@ -949,7 +955,7 @@ async function updateIntersectionArea() {
     })();
 
     const coveragePercent = await Promise.race([computePromise, timeoutPromise]);
-    const areaSqDeg = (coveragePercent / 100) * 41252.96;
+    const areaSqDeg = (coveragePercent / 100) * FULL_SKY_AREA_SQ_DEG;
 
     if (token !== state.intersectionToken) {
       return;
@@ -968,6 +974,43 @@ async function updateIntersectionArea() {
     } else {
       showToast("Intersection calculation failed.", "error", "intersection-error", 3000);
     }
+  }
+}
+
+async function updateSingleSurveyArea(survey, token) {
+  if (!survey) {
+    if (token === state.singleAreaToken) {
+      elements.intersectionArea.textContent = "--";
+    }
+    return;
+  }
+
+  if (state.areaCache.has(survey.id)) {
+    const cachedArea = state.areaCache.get(survey.id);
+    if (token === state.singleAreaToken) {
+      elements.intersectionArea.textContent = cachedArea.toFixed(2);
+      console.log(`Area set to (cached): ${cachedArea.toFixed(2)}`);
+    }
+    return;
+  }
+
+  try {
+    const mocInstance = await loadSurveyMoc(survey);
+    const coveragePercent = mocInstance.coveragePercentage();
+    const areaSqDeg = (coveragePercent / 100) * FULL_SKY_AREA_SQ_DEG;
+    state.areaCache.set(survey.id, areaSqDeg);
+    if (token !== state.singleAreaToken) {
+      return;
+    }
+    elements.intersectionArea.textContent = areaSqDeg.toFixed(2);
+    console.log(`Area set to: ${areaSqDeg.toFixed(2)}`);
+  } catch (error) {
+    console.error("Failed to compute survey area:", error);
+    if (token !== state.singleAreaToken) {
+      return;
+    }
+    elements.intersectionArea.textContent = "unavailable";
+    showToast("Survey area calculation failed.", "error", `area-${survey.id}`, 3000);
   }
 }
 
