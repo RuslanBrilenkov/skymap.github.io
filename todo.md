@@ -7,3 +7,4 @@
 5. Add a feature to search which surveys the sources are present in.
 6. Add a button to download the augmented CSV file.
 7. Add a feature to download crossmatched survey maps.
+8. ~~Add a "Show cross-match only" mode that highlights intersection areas.~~ **Done.**

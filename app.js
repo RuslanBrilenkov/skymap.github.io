@@ -158,6 +158,8 @@ const state = {
     initialized: false,
   },
   areaCache: new Map(),
+  crossMatchOnly: false,
+  intersectionBlobUrl: null,
 };
 
 const elements = {
@@ -178,6 +180,7 @@ const elements = {
   surveyToggle: document.getElementById("survey-toggle"),
   surveyPanel: document.getElementById("survey-panel"),
   persistToggle: document.getElementById("persist-toggle"),
+  crossMatchToggle: document.getElementById("crossmatch-toggle"),
   toastStack: document.getElementById("toast-stack"),
   projectionBtns: document.querySelectorAll(".projection-btn"),
   // View toggle elements
@@ -332,6 +335,11 @@ async function init() {
         logStatus("Selected options remembered.");
       }
     });
+  }
+
+  // Cross-match toggle
+  if (elements.crossMatchToggle) {
+    elements.crossMatchToggle.addEventListener("change", handleCrossMatchToggle);
   }
 
   // View toggle buttons (Aladin vs Equirectangular)
@@ -529,10 +537,15 @@ function applyTheme(themeId) {
   renderLegend();
 
   // Refresh the active view
+  const crossMatchActive = state.crossMatchOnly && state.selected.size >= 2;
   if (state.activeView === "aladin") {
     scheduleRefreshMOCLayers();
   } else if (state.eqMap.initialized) {
-    refreshEqMapSurveys();
+    refreshEqMapSurveys().then(() => {
+      if (crossMatchActive) {
+        applyCrossMatchEquirectangular();
+      }
+    });
   }
 
   persistSettings();
@@ -623,6 +636,11 @@ function clearDropTargets() {
 }
 
 function handleSurveyToggle(survey, isChecked) {
+  // Clean up stale intersection state (will be recomputed if still needed)
+  if (state.crossMatchOnly) {
+    cleanupCrossMatchState();
+  }
+
   logStatus(
     `${survey.label} ${isChecked ? "selected" : "deselected"}.`
   );
@@ -672,6 +690,21 @@ function handleSurveyToggle(survey, isChecked) {
   renderLegend();
   updateSurveyToggleLabel();
   persistSettings();
+
+  if (state.crossMatchOnly) {
+    if (state.selected.size >= 2) {
+      // Re-compute intersection for the new survey set
+      enterCrossMatchMode();
+    } else {
+      // Dropped below 2 surveys — restore normal view
+      if (state.activeView === "aladin") {
+        scheduleRefreshMOCLayers();
+      }
+      if (state.activeView === "equirectangular" && state.eqMap.initialized) {
+        restoreEqMapNormalView();
+      }
+    }
+  }
 }
 
 function addSurveyLayer(survey) {
@@ -821,9 +854,12 @@ function refreshMOCLayers() {
         return;
       }
       showToast(`Loading ${survey.label}…`, "loading", survey.id);
+      const crossMatchActive = state.crossMatchOnly && state.selected.size >= 2;
+      const layerColor = crossMatchActive ? "#888888" : survey.color;
+      const layerOpacity = crossMatchActive ? 0.3 : survey.opacity;
       const mocLayer = A.MOCFromURL(survey.mocUrl, {
-        color: survey.color,
-        opacity: survey.opacity,
+        color: layerColor,
+        opacity: layerOpacity,
         lineWidth: 2,
         adaptativeDisplay: false,
       });
@@ -835,6 +871,20 @@ function refreshMOCLayers() {
       const loadedItem = elements.surveyList.querySelector(`[data-survey-id="${survey.id}"]`);
       if (loadedItem) loadedItem.classList.remove("is-loading");
     });
+
+    // Add intersection overlay if cross-match is active
+    const crossMatchActive = state.crossMatchOnly && state.selected.size >= 2;
+    if (crossMatchActive && state.intersectionBlobUrl) {
+      const intersectionLayer = A.MOCFromURL(state.intersectionBlobUrl, {
+        color: "#ffffff",
+        opacity: 0.6,
+        lineWidth: 2,
+        adaptativeDisplay: false,
+      });
+      state.aladin.addMOC(intersectionLayer);
+      state.layers.set("__intersection__", intersectionLayer);
+    }
+
     forceAladinRedraw();
   } catch (error) {
     console.error("Failed to refresh MOC layers:", error);
@@ -1014,8 +1064,282 @@ async function updateSingleSurveyArea(survey, token) {
   }
 }
 
+async function handleCrossMatchToggle(event) {
+  state.crossMatchOnly = event.target.checked;
+
+  if (state.crossMatchOnly) {
+    if (state.selected.size >= 2) {
+      await enterCrossMatchMode();
+    }
+  } else {
+    exitCrossMatchMode();
+  }
+}
+
+async function enterCrossMatchMode() {
+  beginMapUpdate();
+  logStatus("Computing cross-match…");
+
+  try {
+    // 1. Compute intersection MOC using WASM
+    const selectedSurveys = Array.from(state.selected)
+      .map((id) => SURVEYS.find((s) => s.id === id))
+      .filter(Boolean);
+
+    if (selectedSurveys.length < 2) return;
+
+    const mocs = await Promise.all(selectedSurveys.map((s) => loadSurveyMoc(s)));
+
+    let intersection = mocs[0];
+    for (let i = 1; i < mocs.length; i++) {
+      intersection = intersection.and(mocs[i]);
+    }
+
+    // 2. Check if intersection is non-empty and create Blob URL
+    const coverage = intersection.coveragePercentage();
+    if (state.intersectionBlobUrl) {
+      URL.revokeObjectURL(state.intersectionBlobUrl);
+      state.intersectionBlobUrl = null;
+    }
+
+    if (coverage > 0) {
+      try {
+        const fitsData = intersection.toFits(true);
+        state.intersectionBlobUrl = URL.createObjectURL(
+          new Blob([fitsData], { type: "application/fits" })
+        );
+      } catch (fitsError) {
+        console.warn("Could not export intersection MOC to FITS:", fitsError);
+      }
+    }
+
+    // 3. Apply cross-match visuals to current view (grey out surveys regardless)
+    if (state.activeView === "aladin") {
+      applyCrossMatchAladin();
+    }
+    if (state.activeView === "equirectangular" && state.eqMap.initialized) {
+      await applyCrossMatchEquirectangular();
+    }
+
+    if (coverage > 0) {
+      logStatus("Showing cross-match.");
+      showToast("Cross-match mode enabled", "success", "crossmatch", 1400);
+    } else {
+      logStatus("No overlapping area found.");
+      showToast("No overlapping area between selected surveys", "success", "crossmatch", 2000);
+    }
+  } catch (error) {
+    console.error("Failed to compute cross-match intersection:", error);
+    state.crossMatchOnly = false;
+    if (elements.crossMatchToggle) elements.crossMatchToggle.checked = false;
+    showToast("Cross-match calculation failed", "error", "crossmatch", 3000);
+    logStatus("Cross-match calculation failed.");
+  } finally {
+    endMapUpdate();
+  }
+}
+
+function applyCrossMatchAladin() {
+  // Rebuild survey layers with greyed-out colors + intersection overlay
+  // (refreshMOCLayers handles both when crossMatchActive and intersectionBlobUrl exist)
+  refreshMOCLayers();
+}
+
+async function applyCrossMatchEquirectangular() {
+  if (!state.eqMap.initialized) return;
+
+  const { surveyGroup, svg, xScale, yScale, innerWidth, innerHeight } = state.eqMap;
+
+  // 1. Grey out existing survey polygons
+  surveyGroup.selectAll(".eq-survey-polygon")
+    .attr("fill", "#888888")
+    .attr("fill-opacity", 0.1)
+    .attr("stroke", "#888888")
+    .attr("stroke-opacity", 0.2);
+
+  // 2. Build clip paths from each selected survey's GeoJSON
+  let defs = svg.select("defs");
+  if (defs.empty()) defs = svg.insert("defs", ":first-child");
+
+  // Remove old cross-match clips
+  defs.selectAll(".crossmatch-clip").remove();
+  surveyGroup.selectAll(".crossmatch-highlight").remove();
+
+  const selectedSurveys = [...SURVEYS].filter((s) => state.selected.has(s.id));
+
+  for (const survey of selectedSurveys) {
+    let geoData = state.eqMap.geojsonCache.get(survey.id);
+    if (!geoData) {
+      geoData = await loadSurveyGeoJSON(survey);
+      if (!geoData) continue;
+    }
+    if (!geoData) continue;
+
+    const clipPath = defs.append("clipPath")
+      .attr("id", `clip-crossmatch-${survey.id}`)
+      .attr("class", "crossmatch-clip");
+
+    const feature = geoData.features[0];
+    const polygons = feature.geometry.coordinates;
+    const allPathData = [];
+
+    polygons.forEach((polygon) => {
+      const ring = polygon[0];
+      const segments = splitRingAtSeamForClip(ring);
+      segments.forEach((segment) => {
+        const pathData = buildPathDataForClip(segment, xScale, yScale);
+        if (pathData) allPathData.push(pathData);
+      });
+    });
+
+    if (allPathData.length > 0) {
+      clipPath.append("path").attr("d", allPathData.join(" "));
+    }
+  }
+
+  // 3. Draw intersection highlight with nested clip paths
+  let group = surveyGroup.append("g").attr("class", "crossmatch-highlight");
+  for (const survey of selectedSurveys) {
+    const clipId = `clip-crossmatch-${survey.id}`;
+    if (defs.select(`#${clipId}`).empty()) continue;
+    group = group.append("g")
+      .attr("clip-path", `url(#${clipId})`);
+  }
+  group.append("rect")
+    .attr("width", innerWidth)
+    .attr("height", innerHeight)
+    .attr("fill", "#ffffff")
+    .attr("fill-opacity", 0.5);
+}
+
+// Helper: split ring at RA=0/360 seam (extracted from drawSurveyOnEqMap pattern)
+function splitRingAtSeamForClip(ring) {
+  if (!ring || ring.length < 3) return [];
+
+  const closed = ring.slice();
+  const first = closed[0];
+  const last = closed[closed.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    closed.push([first[0], first[1]]);
+  }
+
+  const segments = [];
+  let current = [];
+  const pushPoint = (pt) => {
+    const prev = current[current.length - 1];
+    if (!prev || prev[0] !== pt[0] || prev[1] !== pt[1]) {
+      current.push(pt);
+    }
+  };
+
+  pushPoint(closed[0]);
+
+  for (let i = 1; i < closed.length; i++) {
+    const prev = closed[i - 1];
+    const curr = closed[i];
+    const raDiff = curr[0] - prev[0];
+
+    if (Math.abs(raDiff) > 180) {
+      let adjustedCurr = curr[0];
+      let boundaryRa = 0;
+      let restartRa = 360;
+
+      if (prev[0] > curr[0]) {
+        adjustedCurr = curr[0] + 360;
+        boundaryRa = 360;
+        restartRa = 0;
+      } else {
+        adjustedCurr = curr[0] - 360;
+        boundaryRa = 0;
+        restartRa = 360;
+      }
+
+      const t = (boundaryRa - prev[0]) / (adjustedCurr - prev[0]);
+      const boundaryDec = prev[1] + t * (curr[1] - prev[1]);
+
+      pushPoint([boundaryRa, boundaryDec]);
+      if (current.length >= 3) {
+        segments.push(current);
+      }
+      current = [];
+      pushPoint([restartRa, boundaryDec]);
+    }
+
+    pushPoint(curr);
+  }
+
+  if (current.length >= 3) {
+    segments.push(current);
+  }
+
+  return segments;
+}
+
+// Helper: build SVG path data from segment coordinates
+function buildPathDataForClip(segment, xScale, yScale) {
+  if (!segment || segment.length < 3) return "";
+  const first = segment[0];
+  const last = segment[segment.length - 1];
+  const points = (first[0] === last[0] && first[1] === last[1])
+    ? segment.slice(0, -1)
+    : segment;
+
+  const pathParts = points.map((coord, idx) => {
+    const x = xScale(coord[0]);
+    const y = yScale(coord[1]);
+    return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
+  });
+
+  return `${pathParts.join(" ")} Z`;
+}
+
+function exitCrossMatchMode() {
+  // Clean up state
+  cleanupCrossMatchState();
+
+  // Restore normal visuals
+  if (state.activeView === "aladin") {
+    refreshMOCLayers();
+  }
+  if (state.activeView === "equirectangular" && state.eqMap.initialized) {
+    restoreEqMapNormalView();
+  }
+
+  logStatus("Restored normal view.");
+  showToast("Cross-match mode disabled", "success", "crossmatch", 1400);
+}
+
+function cleanupCrossMatchState() {
+  if (state.intersectionBlobUrl) {
+    URL.revokeObjectURL(state.intersectionBlobUrl);
+    state.intersectionBlobUrl = null;
+  }
+}
+
+function restoreEqMapNormalView() {
+  if (!state.eqMap.initialized) return;
+  const { surveyGroup, svg } = state.eqMap;
+
+  // Remove cross-match highlight and clip paths
+  surveyGroup.selectAll(".crossmatch-highlight").remove();
+  const defs = svg.select("defs");
+  if (!defs.empty()) {
+    defs.selectAll(".crossmatch-clip").remove();
+  }
+
+  // Re-draw surveys with original colors
+  refreshEqMapSurveys();
+}
+
 function resetSelections() {
   console.log("Reset button clicked");
+
+  // Reset cross-match mode
+  if (state.crossMatchOnly) {
+    state.crossMatchOnly = false;
+    if (elements.crossMatchToggle) elements.crossMatchToggle.checked = false;
+    cleanupCrossMatchState();
+  }
 
   // Uncheck all checkboxes
   const checkboxes = elements.surveyList.querySelectorAll("input[type=checkbox]");
@@ -1696,7 +2020,12 @@ function setActiveView(view) {
     elements.mapTitle.textContent = "Aladin Lite V2";
     // Refresh MOC layers to sync with current selection
     if (state.selected.size > 0) {
-      scheduleRefreshMOCLayers();
+      if (state.crossMatchOnly && state.selected.size >= 2 && state.intersectionBlobUrl) {
+        // In cross-match mode, use applyCrossMatchAladin which calls refreshMOCLayers internally
+        applyCrossMatchAladin();
+      } else {
+        scheduleRefreshMOCLayers();
+      }
     } else {
       forceAladinRedraw();
     }
@@ -1710,7 +2039,12 @@ function setActiveView(view) {
     if (!state.eqMap.initialized) {
       initEquirectangularMap();
     }
-    refreshEqMapSurveys();
+    refreshEqMapSurveys().then(() => {
+      // Re-apply cross-match visuals after surveys are drawn (only if 2+ surveys)
+      if (state.crossMatchOnly && state.selected.size >= 2) {
+        applyCrossMatchEquirectangular();
+      }
+    });
   }
 
   persistSettings();
