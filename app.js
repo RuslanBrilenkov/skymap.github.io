@@ -14,6 +14,7 @@ const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
 const STORAGE_KEY = "sky-coverage-settings-v2";
 const PERSIST_KEY = "sky-coverage-persist-enabled";
 const UI_THEME_KEY = "sky-coverage-ui-theme";
+const ALADIN_VIEW_KEY = "sky-coverage-aladin-view";
 
 const SURVEY_CONFIGS = [
   {
@@ -229,6 +230,7 @@ async function init() {
   }
 
   try {
+    localStorage.removeItem(ALADIN_VIEW_KEY);
     // Aladin Lite v2 initialization
     state.aladin = window.A.aladin("#aladin-lite-div", {
       survey: "P/DSS2/color",
@@ -243,6 +245,7 @@ async function init() {
 
     state.aladinLibrary = window.A;
     addAnchorLayer();
+    // Aladin view persistence disabled: always reset on refresh.
   } catch (error) {
     console.error("Failed to initialize Aladin:", error);
     elements.coverageLog.textContent = `Failed to initialize Aladin: ${error.message}`;
@@ -1998,6 +2001,181 @@ async function loadSurveyGeoJSON(survey) {
     console.error(`Failed to load GeoJSON for ${survey.label}:`, error);
     return null;
   }
+}
+
+function getAladinCenter() {
+  if (!state.aladin) return null;
+  if (typeof state.aladin.getRaDec === "function") {
+    const center = state.aladin.getRaDec();
+    if (center && Number.isFinite(center.ra) && Number.isFinite(center.dec)) {
+      return center;
+    }
+  }
+  if (state.aladin.view && typeof state.aladin.view.getRaDec === "function") {
+    const center = state.aladin.view.getRaDec();
+    if (center && Number.isFinite(center.ra) && Number.isFinite(center.dec)) {
+      return center;
+    }
+  }
+  if (state.aladin.view && typeof state.aladin.view.getCenter === "function") {
+    const center = state.aladin.view.getCenter();
+    if (center && Number.isFinite(center.ra) && Number.isFinite(center.dec)) {
+      return center;
+    }
+  }
+  if (state.aladin.view && state.aladin.view.center) {
+    const center = state.aladin.view.center;
+    if (center && Number.isFinite(center.ra) && Number.isFinite(center.dec)) {
+      return center;
+    }
+  }
+  if (state.aladin.view && Number.isFinite(state.aladin.view.ra) && Number.isFinite(state.aladin.view.dec)) {
+    return { ra: state.aladin.view.ra, dec: state.aladin.view.dec };
+  }
+  return null;
+}
+
+function getAladinFov() {
+  if (!state.aladin) return null;
+  if (typeof state.aladin.getFov === "function") {
+    const fov = state.aladin.getFov();
+    return Number.isFinite(fov) ? fov : null;
+  }
+  if (typeof state.aladin.getFoV === "function") {
+    const fov = state.aladin.getFoV();
+    return Number.isFinite(fov) ? fov : null;
+  }
+  if (state.aladin.view && typeof state.aladin.view.getFov === "function") {
+    const fov = state.aladin.view.getFov();
+    return Number.isFinite(fov) ? fov : null;
+  }
+  if (state.aladin.view && Number.isFinite(state.aladin.view.fov)) {
+    return state.aladin.view.fov;
+  }
+  return null;
+}
+
+function getAladinZoom() {
+  if (!state.aladin) return null;
+  if (typeof state.aladin.getZoom === "function") {
+    const zoom = state.aladin.getZoom();
+    return Number.isFinite(zoom) ? zoom : null;
+  }
+  if (state.aladin.view && typeof state.aladin.view.getZoom === "function") {
+    const zoom = state.aladin.view.getZoom();
+    return Number.isFinite(zoom) ? zoom : null;
+  }
+  if (state.aladin.view && Number.isFinite(state.aladin.view.zoom)) {
+    return state.aladin.view.zoom;
+  }
+  return null;
+}
+
+function saveAladinView() {
+  const center = getAladinCenter();
+  if (!center) return;
+  const fov = getAladinFov();
+  const zoom = getAladinZoom();
+  const payload = {
+    ra: center.ra,
+    dec: center.dec,
+    fov,
+    zoom,
+  };
+  try {
+    localStorage.setItem(ALADIN_VIEW_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Failed to save Aladin view:", error);
+  }
+}
+
+function restoreAladinView() {
+  if (!state.aladin) return;
+  try {
+    const raw = localStorage.getItem(ALADIN_VIEW_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!Number.isFinite(data.ra) || !Number.isFinite(data.dec)) {
+      return;
+    }
+    if (typeof state.aladin.gotoRaDec === "function") {
+      state.aladin.gotoRaDec(data.ra, data.dec);
+    } else if (typeof state.aladin.setRaDec === "function") {
+      state.aladin.setRaDec(data.ra, data.dec);
+    } else if (state.aladin.view && typeof state.aladin.view.setRaDec === "function") {
+      state.aladin.view.setRaDec(data.ra, data.dec);
+    }
+    if (Number.isFinite(data.fov)) {
+      if (typeof state.aladin.setFov === "function") {
+        state.aladin.setFov(data.fov);
+      } else if (typeof state.aladin.setFoV === "function") {
+        state.aladin.setFoV(data.fov);
+      } else if (state.aladin.view && typeof state.aladin.view.setFov === "function") {
+        state.aladin.view.setFov(data.fov);
+      }
+    } else if (Number.isFinite(data.zoom)) {
+      if (typeof state.aladin.setZoom === "function") {
+        state.aladin.setZoom(data.zoom);
+      } else if (state.aladin.view && typeof state.aladin.view.setZoom === "function") {
+        state.aladin.view.setZoom(data.zoom);
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to restore Aladin view:", error);
+  }
+}
+
+function getStoredAladinView() {
+  try {
+    const raw = localStorage.getItem(ALADIN_VIEW_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!Number.isFinite(data.ra) || !Number.isFinite(data.dec)) {
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.warn("Failed to read Aladin view:", error);
+    return null;
+  }
+}
+
+function attachAladinViewPersistence() {
+  if (!state.aladin) return;
+  const throttledSave = (() => {
+    let timer = null;
+    return () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        saveAladinView();
+      }, 300);
+    };
+  })();
+
+  setInterval(saveAladinView, 1500);
+
+  if (typeof state.aladin.on === "function") {
+    state.aladin.on("positionChanged", throttledSave);
+    state.aladin.on("zoomChanged", throttledSave);
+    state.aladin.on("zoomend", throttledSave);
+    state.aladin.on("moveend", throttledSave);
+  } else if (state.aladin.view && typeof state.aladin.view.on === "function") {
+    state.aladin.view.on("positionChanged", throttledSave);
+    state.aladin.view.on("zoomChanged", throttledSave);
+    state.aladin.view.on("zoomend", throttledSave);
+    state.aladin.view.on("moveend", throttledSave);
+  } else {
+    setInterval(saveAladinView, 1500);
+  }
+
+  window.addEventListener("pagehide", saveAladinView);
+  window.addEventListener("beforeunload", saveAladinView);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      saveAladinView();
+    }
+  });
 }
 
 function drawSurveyOnEqMap(survey, geojson) {
