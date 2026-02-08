@@ -630,6 +630,11 @@ body:not(.light) .theme-toggle__label:first-child {
   stroke-opacity: 0.8;
 }
 
+.eq-catalog-point {
+  fill: #ff6f8e;
+  opacity: 0.85;
+}
+
 .eq-pole-marker {
   fill: currentColor;
 }

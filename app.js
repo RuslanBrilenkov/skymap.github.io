@@ -152,6 +152,7 @@ const state = {
     gridGroup: null,
     surveyGroup: null,
     overlayGroup: null,
+    catalogGroup: null,
     labelGroup: null,
     xScale: null,
     yScale: null,
@@ -161,6 +162,10 @@ const state = {
   areaCache: new Map(),
   crossMatchOnly: false,
   intersectionBlobUrl: null,
+  catalogPoints: [],
+  catalogLayer: null,
+  catalogPending: false,
+  catalogRestored: false,
 };
 
 const elements = {
@@ -183,6 +188,9 @@ const elements = {
   persistToggle: document.getElementById("persist-toggle"),
   uiThemeToggle: document.getElementById("ui-theme-toggle"),
   crossMatchToggle: document.getElementById("crossmatch-toggle"),
+  uploadButton: document.getElementById("upload-button"),
+  uploadInput: document.getElementById("upload-input"),
+  clearCatalogButton: document.getElementById("clear-catalog-button"),
   toastStack: document.getElementById("toast-stack"),
   projectionBtns: document.querySelectorAll(".projection-btn"),
   // View toggle elements
@@ -345,6 +353,21 @@ async function init() {
       logStatus(`UI theme set to ${event.target.checked ? "Light" : "Dark"}.`);
     });
   }
+  if (elements.uploadButton && elements.uploadInput) {
+    elements.uploadButton.addEventListener("click", () => {
+      elements.uploadInput.click();
+    });
+    elements.uploadInput.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (file) {
+        handleCatalogUpload(file);
+      }
+      event.target.value = "";
+    });
+  }
+  if (elements.clearCatalogButton) {
+    elements.clearCatalogButton.addEventListener("click", clearCatalog);
+  }
 
   // Cross-match toggle
   if (elements.crossMatchToggle) {
@@ -402,6 +425,18 @@ async function init() {
   if (state.crossMatchOnly && state.selected.size >= 2) {
     enterCrossMatchMode();
   }
+
+  if (state.catalogPending && state.catalogPoints.length > 0) {
+    renderCatalogAladin();
+  }
+
+  if (state.catalogRestored && state.catalogPoints.length > 0) {
+    renderCatalogEquirectangular();
+    renderCatalogAladin();
+    state.catalogRestored = false;
+  }
+
+  updateCatalogControls();
 }
 
 async function waitForAladin() {
@@ -891,6 +926,10 @@ function refreshMOCLayers() {
       });
       state.aladin.addMOC(intersectionLayer);
       state.layers.set("__intersection__", intersectionLayer);
+    }
+
+    if (state.catalogPoints.length > 0) {
+      renderCatalogAladin();
     }
 
     forceAladinRedraw();
@@ -1470,6 +1509,7 @@ function persistSettings() {
       selected: Array.from(state.selected),
       order: SURVEYS.map((survey) => survey.id),
       crossMatchOnly: state.crossMatchOnly,
+      catalogPoints: state.catalogPoints,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (error) {
@@ -1552,6 +1592,16 @@ function restoreSettings() {
       if (elements.crossMatchToggle) {
         elements.crossMatchToggle.checked = data.crossMatchOnly;
       }
+    }
+    if (Array.isArray(data.catalogPoints)) {
+      state.catalogPoints = data.catalogPoints
+        .filter((point) => Number.isFinite(point.ra) && Number.isFinite(point.dec))
+        .map((point) => ({
+          ra: ((point.ra % 360) + 360) % 360,
+          dec: point.dec,
+          data: point.data || {},
+        }));
+      state.catalogRestored = state.catalogPoints.length > 0;
     }
   } catch (error) {
     console.warn("Failed to restore settings:", error);
@@ -1690,6 +1740,7 @@ function initEquirectangularMap() {
   state.eqMap.gridGroup = g.append("g").attr("class", "eq-grid-group");
   state.eqMap.surveyGroup = g.append("g").attr("class", "eq-survey-group");
   state.eqMap.overlayGroup = g.append("g").attr("class", "eq-overlay-group");
+  state.eqMap.catalogGroup = g.append("g").attr("class", "eq-catalog-group");
   state.eqMap.labelGroup = g.append("g").attr("class", "eq-label-group");
 
   state.eqMap.svg = svg;
@@ -2138,6 +2189,263 @@ async function refreshEqMapSurveys(options = {}) {
   }
 }
 
+function parseDelimited(text, delimiter) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "\"") {
+      if (inQuotes && text[i + 1] === "\"") {
+        value += "\"";
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (!inQuotes && (ch === "\n" || ch === "\r")) {
+      if (ch === "\r" && text[i + 1] === "\n") {
+        i += 1;
+      }
+      row.push(value);
+      const hasContent = row.some((cell) => String(cell).trim() !== "");
+      if (hasContent) rows.push(row);
+      row = [];
+      value = "";
+      continue;
+    }
+    if (!inQuotes && ch === delimiter) {
+      row.push(value);
+      value = "";
+      continue;
+    }
+    value += ch;
+  }
+  if (value.length > 0 || row.length > 0) {
+    row.push(value);
+    const hasContent = row.some((cell) => String(cell).trim() !== "");
+    if (hasContent) rows.push(row);
+  }
+  return rows;
+}
+
+function detectColumns(headers) {
+  const normalized = headers.map((h) =>
+    String(h).toLowerCase().replace(/[^a-z0-9]/g, "")
+  );
+  const raCandidates = ["ra", "radeg", "radegree", "radegrees"];
+  const decCandidates = ["dec", "decd", "decdeg", "decl", "declination"];
+
+  let raIndex = normalized.findIndex((h) => raCandidates.includes(h));
+  let decIndex = normalized.findIndex((h) => decCandidates.includes(h));
+
+  if (raIndex === -1) {
+    raIndex = normalized.findIndex((h) => h.startsWith("ra"));
+  }
+  if (decIndex === -1) {
+    decIndex = normalized.findIndex((h) => h.startsWith("dec") || h.startsWith("decl"));
+  }
+
+  const raHeader = headers[raIndex] || "";
+  const raIsHoursByName = /ra.*(hour|hr|hrs)|^rah$|ra_?h$/i.test(String(raHeader));
+
+  return { raIndex, decIndex, raIsHoursByName };
+}
+
+function handleCatalogUpload(file) {
+  if (!file) return;
+  const maxRows = 1000;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const text = String(reader.result || "");
+      const delimiter = text.includes("\t") && !text.includes(",") ? "\t" : ",";
+      const rows = parseDelimited(text, delimiter);
+      if (rows.length < 2) {
+        showToast("Catalog file is empty or missing data rows.", "error", "catalog-empty", 3000);
+        return;
+      }
+
+      const headers = rows[0].map((h) => String(h).trim().replace(/^\uFEFF/, ""));
+      const { raIndex, decIndex, raIsHoursByName } = detectColumns(headers);
+      if (raIndex === -1 || decIndex === -1) {
+        showToast("Catalog must include ra and dec columns.", "error", "catalog-columns", 3500);
+        return;
+      }
+
+      const dataRows = rows.slice(1);
+      if (dataRows.length > maxRows) {
+        showToast(`Catalog exceeds ${maxRows} rows (found ${dataRows.length}).`, "error", "catalog-limit", 3500);
+        return;
+      }
+
+      const points = [];
+      let maxRa = -Infinity;
+      let minRa = Infinity;
+      let skipped = 0;
+
+      dataRows.forEach((row) => {
+        const rawRa = parseFloat(row[raIndex]);
+        const rawDec = parseFloat(row[decIndex]);
+        if (!Number.isFinite(rawRa) || !Number.isFinite(rawDec)) {
+          skipped += 1;
+          return;
+        }
+        maxRa = Math.max(maxRa, rawRa);
+        minRa = Math.min(minRa, rawRa);
+        const record = {};
+        headers.forEach((header, idx) => {
+          record[header] = row[idx];
+        });
+        points.push({ ra: rawRa, dec: rawDec, data: record });
+      });
+
+      if (points.length === 0) {
+        showToast("No valid coordinates found in catalog.", "error", "catalog-empty", 3000);
+        return;
+      }
+
+      const shouldTreatAsHours = raIsHoursByName || (minRa >= 0 && maxRa <= 24);
+      const convertedPoints = points.map((point) => {
+        const raValue = shouldTreatAsHours ? point.ra * 15 : point.ra;
+        const raWrapped = ((raValue % 360) + 360) % 360;
+        return {
+          ...point,
+          ra: raWrapped,
+          dec: point.dec,
+        };
+      });
+
+      state.catalogPoints = convertedPoints;
+      renderCatalogAladin();
+      renderCatalogEquirectangular();
+      persistSettings();
+      updateCatalogControls();
+
+      const hourNote = shouldTreatAsHours ? " (RA hours detected)" : "";
+      showToast(`Loaded ${convertedPoints.length} sources${hourNote}.`, "success", "catalog-loaded", 2200);
+      logStatus(`Catalog loaded: ${convertedPoints.length} sources${hourNote}.`);
+      if (skipped > 0) {
+        logStatus(`Skipped ${skipped} rows with invalid coordinates.`);
+      }
+    } catch (error) {
+      console.error("Catalog upload failed:", error);
+      showToast("Failed to parse catalog file.", "error", "catalog-error", 3000);
+    }
+  };
+  reader.onerror = () => {
+    showToast("Failed to read catalog file.", "error", "catalog-read", 3000);
+  };
+  reader.readAsText(file);
+}
+
+function renderCatalogAladin() {
+  if (!state.aladin || state.catalogPoints.length === 0) {
+    if (state.catalogPoints.length > 0 && !state.aladin) {
+      state.catalogPending = true;
+    }
+    return;
+  }
+  try {
+    removeAladinCatalogLayer();
+    const A = window.A;
+    if (!A || typeof A.catalog !== "function" || typeof A.source !== "function") {
+      console.warn("Aladin catalog helpers unavailable.");
+      showToast("Catalog rendering not supported in Aladin.", "error", "catalog-unsupported", 3000);
+      return;
+    }
+    const catalog = A.catalog({ name: "Catalog", sourceSize: 5, color: "#ff6f8e" });
+    state.aladin.addCatalog(catalog);
+    const sources = state.catalogPoints.map((point) => A.source(point.ra, point.dec, point.data || {}));
+    if (typeof catalog.addSources === "function") {
+      catalog.addSources(sources);
+    } else if (typeof catalog.addSource === "function") {
+      sources.forEach((source) => catalog.addSource(source));
+    }
+    state.catalogLayer = catalog;
+    state.catalogPending = false;
+    forceAladinRedraw();
+  } catch (error) {
+    console.warn("Failed to render catalog in Aladin:", error);
+  }
+}
+
+function renderCatalogEquirectangular() {
+  if (!state.eqMap.initialized || !state.eqMap.catalogGroup) {
+    return;
+  }
+  const { catalogGroup, xScale, yScale } = state.eqMap;
+  catalogGroup.selectAll(".eq-catalog-point").remove();
+  if (state.catalogPoints.length === 0) {
+    return;
+  }
+  catalogGroup.selectAll(".eq-catalog-point")
+    .data(state.catalogPoints)
+    .enter()
+    .append("circle")
+    .attr("class", "eq-catalog-point")
+    .attr("cx", (d) => xScale(d.ra))
+    .attr("cy", (d) => yScale(d.dec))
+    .attr("r", 2.2);
+}
+
+function clearCatalog() {
+  state.catalogPoints = [];
+  removeAladinCatalogLayer();
+  if (state.eqMap.catalogGroup) {
+    state.eqMap.catalogGroup.selectAll(".eq-catalog-point").remove();
+  }
+  updateCatalogControls();
+  persistSettings();
+  showToast("Catalog cleared.", "success", "catalog-cleared", 1600);
+  logStatus("Catalog cleared.");
+}
+
+function removeAladinCatalogLayer() {
+  if (!state.catalogLayer || !state.aladin) {
+    state.catalogLayer = null;
+    return;
+  }
+  const catalog = state.catalogLayer;
+  let removed = false;
+
+  if (typeof catalog.clear === "function") {
+    catalog.clear();
+    removed = true;
+  }
+  if (typeof catalog.removeAllSources === "function") {
+    catalog.removeAllSources();
+    removed = true;
+  }
+  if (typeof catalog.setSources === "function") {
+    catalog.setSources([]);
+    removed = true;
+  }
+  if (typeof state.aladin.removeCatalog === "function") {
+    state.aladin.removeCatalog(catalog);
+    removed = true;
+  } else if (typeof state.aladin.removeLayer === "function") {
+    state.aladin.removeLayer(catalog);
+    removed = true;
+  }
+  if (!removed && typeof catalog.hide === "function") {
+    catalog.hide();
+  }
+
+  state.catalogLayer = null;
+  forceAladinRedraw();
+}
+
+function updateCatalogControls() {
+  if (elements.clearCatalogButton) {
+    elements.clearCatalogButton.disabled = state.catalogPoints.length === 0;
+  }
+}
+
 function setActiveView(view) {
   if (view !== "aladin" && view !== "equirectangular") return;
 
@@ -2160,6 +2468,9 @@ function setActiveView(view) {
     } else {
       forceAladinRedraw();
     }
+    if (state.catalogPoints.length > 0) {
+      renderCatalogAladin();
+    }
   } else {
     elements.aladinDiv.style.display = "none";
     elements.equirectDiv.style.display = "block";
@@ -2171,6 +2482,9 @@ function setActiveView(view) {
       initEquirectangularMap();
     }
     refreshEqMapSurveys();
+    if (state.catalogPoints.length > 0) {
+      renderCatalogEquirectangular();
+    }
   }
 
   persistSettings();
