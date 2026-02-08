@@ -469,6 +469,28 @@ function toggleDropdown(open) {
 function renderSurveyList() {
   elements.surveyList.innerHTML = "";
 
+  const selectAllRow = document.createElement("div");
+  selectAllRow.className = "survey-select-all";
+  const selectAllLabel = document.createElement("label");
+  const selectAllCheckbox = document.createElement("input");
+  selectAllCheckbox.type = "checkbox";
+  selectAllCheckbox.id = "select-all-surveys";
+  selectAllCheckbox.setAttribute("aria-label", "Select all surveys");
+  selectAllCheckbox.checked = state.selected.size === SURVEYS.length && SURVEYS.length > 0;
+  selectAllCheckbox.addEventListener("change", (event) => {
+    if (event.target.checked) {
+      selectAllSurveys();
+    } else {
+      deselectAllSurveys();
+    }
+  });
+  const selectAllText = document.createElement("span");
+  selectAllText.textContent = "Select all surveys";
+  selectAllLabel.appendChild(selectAllCheckbox);
+  selectAllLabel.appendChild(selectAllText);
+  selectAllRow.appendChild(selectAllLabel);
+  elements.surveyList.appendChild(selectAllRow);
+
   SURVEYS.forEach((survey) => {
     const item = document.createElement("div");
     item.className = "survey-item";
@@ -550,6 +572,70 @@ function renderSurveyList() {
   });
 
   updateSurveyToggleLabel();
+}
+
+function selectAllSurveys() {
+  let changed = false;
+
+  SURVEYS.forEach((survey) => {
+    if (!state.selected.has(survey.id)) {
+      state.selected.add(survey.id);
+      changed = true;
+    }
+  });
+
+  if (!changed) {
+    return;
+  }
+
+  renderSurveyList();
+  renderLegend();
+  updateSurveyToggleLabel();
+  updateStats();
+
+  if (state.activeView === "aladin") {
+    scheduleRefreshMOCLayers();
+  } else if (state.activeView === "equirectangular" && state.eqMap.initialized) {
+    refreshEqMapSurveys({ notify: false });
+  }
+
+  if (state.crossMatchOnly && state.selected.size >= 2) {
+    enterCrossMatchMode();
+  }
+
+  persistSettings();
+  showToast("Selected all surveys", "success", "select-all", 1400);
+  logStatus("Selected all surveys.");
+}
+
+function deselectAllSurveys() {
+  if (state.selected.size === 0) {
+    return;
+  }
+
+  // Clear selections
+  state.selected.clear();
+  state.intersectionToken += 1;
+
+  // Clear cross-match overlays and cached intersection
+  cleanupCrossMatchState();
+  if (state.eqMap.initialized) {
+    restoreEqMapNormalView();
+  }
+
+  if (state.activeView === "aladin") {
+    scheduleRefreshMOCLayers();
+  } else if (state.activeView === "equirectangular" && state.eqMap.initialized) {
+    clearEqMapSurveys();
+  }
+
+  renderSurveyList();
+  renderLegend();
+  updateSurveyToggleLabel();
+  updateStats();
+  persistSettings();
+  showToast("Deselected all surveys", "success", "deselect-all", 1400);
+  logStatus("Deselected all surveys.");
 }
 
 function renderLegend() {

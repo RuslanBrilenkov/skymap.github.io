@@ -124,6 +124,31 @@ body {
   gap: 12px;
 }
 
+.survey-select-all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.survey-select-all label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.survey-select-all input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-2);
+}
+
 .survey-dropdown {
   position: relative;
 }
