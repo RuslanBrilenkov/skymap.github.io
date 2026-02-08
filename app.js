@@ -389,6 +389,10 @@ async function init() {
   } else if (state.selected.size > 0) {
     scheduleRefreshMOCLayers();
   }
+
+  if (state.crossMatchOnly && state.selected.size >= 2) {
+    enterCrossMatchMode();
+  }
 }
 
 async function waitForAladin() {
@@ -1069,11 +1073,17 @@ async function handleCrossMatchToggle(event) {
   } else {
     exitCrossMatchMode();
   }
+
+  persistSettings();
 }
 
 async function enterCrossMatchMode() {
   // Cancel any pending debounced refresh to avoid race conditions
-  clearTimeout(state.refreshTimer);
+  if (state.refreshTimer) {
+    clearTimeout(state.refreshTimer);
+    state.refreshTimer = null;
+    endMapUpdate();
+  }
   beginMapUpdate();
   logStatus("Computing cross-match…");
 
@@ -1450,6 +1460,7 @@ function persistSettings() {
       view: state.activeView,
       selected: Array.from(state.selected),
       order: SURVEYS.map((survey) => survey.id),
+      crossMatchOnly: state.crossMatchOnly,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (error) {
@@ -1500,6 +1511,12 @@ function restoreSettings() {
     }
     if (Array.isArray(data.selected)) {
       state.selected = new Set(data.selected);
+    }
+    if (typeof data.crossMatchOnly === "boolean") {
+      state.crossMatchOnly = data.crossMatchOnly;
+      if (elements.crossMatchToggle) {
+        elements.crossMatchToggle.checked = data.crossMatchOnly;
+      }
     }
   } catch (error) {
     console.warn("Failed to restore settings:", error);
