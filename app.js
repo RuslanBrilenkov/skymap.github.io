@@ -1416,12 +1416,25 @@ function restoreEqMapNormalView() {
 function resetSelections() {
   console.log("Reset button clicked");
 
-  // Reset cross-match mode
-  if (state.crossMatchOnly) {
-    state.crossMatchOnly = false;
-    if (elements.crossMatchToggle) elements.crossMatchToggle.checked = false;
-    cleanupCrossMatchState();
+  beginMapUpdate();
+
+  // Clear cross-match overlays (but keep toggle state)
+  cleanupCrossMatchState();
+  if (state.eqMap.initialized) {
+    const { surveyGroup, svg, catalogGroup } = state.eqMap;
+    if (surveyGroup) {
+      surveyGroup.selectAll(".crossmatch-highlight, .crossmatch-outline").remove();
+    }
+    const defs = svg ? svg.select("defs") : null;
+    if (defs && !defs.empty()) {
+      defs.selectAll(".crossmatch-clip").remove();
+    }
+    if (catalogGroup) {
+      catalogGroup.selectAll(".eq-catalog-point").remove();
+    }
   }
+
+  clearCatalog({ silent: true });
 
   // Uncheck all checkboxes
   const checkboxes = elements.surveyList.querySelectorAll("input[type=checkbox]");
@@ -1434,7 +1447,6 @@ function resetSelections() {
   // Clear selections first
   state.selected.clear();
 
-  beginMapUpdate();
   if (state.aladin) {
     const layers = Array.from(state.layers.values());
     layers.forEach((layer) => {
@@ -1466,7 +1478,7 @@ function resetSelections() {
   elements.coverageLog.textContent = "Selections cleared.";
   logStatus("All selections cleared.");
   persistSettings();
-  showToast("Cleared all surveys", "success", "reset", 1400);
+  showToast("Reset complete.", "success", "reset", 1400);
 }
 
 function showToast(message, type, id, duration = 2000) {
@@ -2393,7 +2405,8 @@ function renderCatalogEquirectangular() {
     .attr("r", 2.2);
 }
 
-function clearCatalog() {
+function clearCatalog(options = {}) {
+  const { silent = false } = options;
   state.catalogPoints = [];
   removeAladinCatalogLayer();
   if (state.eqMap.catalogGroup) {
@@ -2401,8 +2414,10 @@ function clearCatalog() {
   }
   updateCatalogControls();
   persistSettings();
-  showToast("Catalog cleared.", "success", "catalog-cleared", 1600);
-  logStatus("Catalog cleared.");
+  if (!silent) {
+    showToast("Catalog cleared.", "success", "catalog-cleared", 1600);
+    logStatus("Catalog cleared.");
+  }
 }
 
 function removeAladinCatalogLayer() {
