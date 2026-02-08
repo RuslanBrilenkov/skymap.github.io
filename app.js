@@ -537,15 +537,10 @@ function applyTheme(themeId) {
   renderLegend();
 
   // Refresh the active view
-  const crossMatchActive = state.crossMatchOnly && state.selected.size >= 2;
   if (state.activeView === "aladin") {
     scheduleRefreshMOCLayers();
   } else if (state.eqMap.initialized) {
-    refreshEqMapSurveys().then(() => {
-      if (crossMatchActive) {
-        applyCrossMatchEquirectangular();
-      }
-    });
+    refreshEqMapSurveys();
   }
 
   persistSettings();
@@ -1077,6 +1072,8 @@ async function handleCrossMatchToggle(event) {
 }
 
 async function enterCrossMatchMode() {
+  // Cancel any pending debounced refresh to avoid race conditions
+  clearTimeout(state.refreshTimer);
   beginMapUpdate();
   logStatus("Computing cross-match…");
 
@@ -2004,6 +2001,11 @@ async function refreshEqMapSurveys(options = {}) {
       showToast(`Failed to load ${survey.label}`, "error", survey.id, 2000);
     }
   }
+
+  // Re-apply cross-match visuals after all surveys are drawn
+  if (state.crossMatchOnly && state.selected.size >= 2) {
+    await applyCrossMatchEquirectangular();
+  }
 }
 
 function setActiveView(view) {
@@ -2038,12 +2040,7 @@ function setActiveView(view) {
     if (!state.eqMap.initialized) {
       initEquirectangularMap();
     }
-    refreshEqMapSurveys().then(() => {
-      // Re-apply cross-match visuals after surveys are drawn (only if 2+ surveys)
-      if (state.crossMatchOnly && state.selected.size >= 2) {
-        applyCrossMatchEquirectangular();
-      }
-    });
+    refreshEqMapSurveys();
   }
 
   persistSettings();
