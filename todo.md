@@ -1,6 +1,6 @@
 # TODO
 
-1. Remove grid from the GeoJSON projection.
+1. ~~Remove grid from the GeoJSON projection.~~ **Done.** Grid hidden by default; toggle available.
 2. Add a thicker outline to the projected footprint.
 3. Add a light mode view (white background).
 4. Add UI to upload a source catalog from the user.

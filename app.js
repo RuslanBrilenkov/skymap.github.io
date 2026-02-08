@@ -1,5 +1,5 @@
 // Version 1.12.1 - Add UNIONS survey
-const VERSION = "1.12.1";
+const VERSION = "1.13.1";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -148,8 +148,8 @@ const state = {
   // Equirectangular map state
   eqMap: {
     svg: null,
-    surveyGroup: null,
     gridGroup: null,
+    surveyGroup: null,
     overlayGroup: null,
     labelGroup: null,
     xScale: null,
@@ -1154,8 +1154,7 @@ async function applyCrossMatchEquirectangular() {
   surveyGroup.selectAll(".eq-survey-polygon")
     .attr("fill", "#888888")
     .attr("fill-opacity", 0.1)
-    .attr("stroke", "#888888")
-    .attr("stroke-opacity", 0.2);
+    .attr("stroke", "none");
 
   // 2. Build clip paths from each selected survey's GeoJSON
   let defs = svg.select("defs");
@@ -1960,7 +1959,7 @@ function drawSurveyOnEqMap(survey, geojson) {
         .attr("d", pathData)
         .attr("fill", survey.color)
         .attr("fill-opacity", 0.4)
-        .attr("stroke", survey.color);
+        .attr("stroke", "none");
     });
   });
 }

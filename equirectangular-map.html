@@ -118,18 +118,6 @@
     }
 
     /* SVG Styles */
-    .grid-line {
-      stroke: #30363d;
-      stroke-width: 0.5;
-      fill: none;
-    }
-
-    .grid-label {
-      fill: var(--text-secondary);
-      font-size: 10px;
-      font-family: "Space Grotesk", sans-serif;
-    }
-
     .galactic-plane {
       stroke: #00bcd4;
       stroke-width: 1.5;
@@ -167,10 +155,6 @@
     <p class="subtitle">Equirectangular projection showing survey footprints in equatorial coordinates</p>
 
     <div class="controls">
-      <div class="control-group">
-        <input type="checkbox" id="show-grid" checked />
-        <label for="show-grid">Coordinate Grid</label>
-      </div>
       <div class="control-group">
         <input type="checkbox" id="show-galactic" checked />
         <label for="show-galactic">Galactic Plane</label>
@@ -242,66 +226,13 @@
       .attr("fill", "#161b22");
 
     // Groups for layering
-    const gridGroup = g.append("g").attr("class", "grid-group");
     const surveyGroup = g.append("g").attr("class", "survey-group");
     const overlayGroup = g.append("g").attr("class", "overlay-group");
     const labelGroup = g.append("g").attr("class", "label-group");
 
-    // Draw coordinate grid
-    function drawGrid() {
-      gridGroup.selectAll("*").remove();
+    function drawAxisLabels() {
+      labelGroup.selectAll("*").remove();
 
-      // RA lines (every 30 degrees = 2 hours)
-      for (let ra = 0; ra <= 360; ra += 30) {
-        gridGroup.append("line")
-          .attr("class", "grid-line")
-          .attr("x1", xScale(ra))
-          .attr("y1", 0)
-          .attr("x2", xScale(ra))
-          .attr("y2", innerHeight);
-      }
-
-      // Dec lines (every 30 degrees)
-      for (let dec = -90; dec <= 90; dec += 30) {
-        gridGroup.append("line")
-          .attr("class", "grid-line")
-          .attr("x1", 0)
-          .attr("y1", yScale(dec))
-          .attr("x2", innerWidth)
-          .attr("y2", yScale(dec));
-      }
-
-      // RA labels (top - hours, bottom - degrees)
-      for (let ra = 0; ra <= 360; ra += 30) {
-        const hours = ra / 15;
-        // Top labels (hours)
-        gridGroup.append("text")
-          .attr("class", "grid-label")
-          .attr("x", xScale(ra))
-          .attr("y", -8)
-          .attr("text-anchor", "middle")
-          .text(`${hours}h`);
-        // Bottom labels (degrees)
-        gridGroup.append("text")
-          .attr("class", "grid-label")
-          .attr("x", xScale(ra))
-          .attr("y", innerHeight + 16)
-          .attr("text-anchor", "middle")
-          .text(`${ra}°`);
-      }
-
-      // Dec labels (left side)
-      for (let dec = -90; dec <= 90; dec += 30) {
-        gridGroup.append("text")
-          .attr("class", "grid-label")
-          .attr("x", -8)
-          .attr("y", yScale(dec))
-          .attr("text-anchor", "end")
-          .attr("dominant-baseline", "middle")
-          .text(`${dec > 0 ? "+" : ""}${dec}°`);
-      }
-
-      // Axis labels
       labelGroup.append("text")
         .attr("class", "axis-label")
         .attr("x", innerWidth / 2)
@@ -648,10 +579,6 @@
     }
 
     // Toggle handlers
-    document.getElementById("show-grid").addEventListener("change", (e) => {
-      gridGroup.style("display", e.target.checked ? "block" : "none");
-    });
-
     document.getElementById("show-galactic").addEventListener("change", (e) => {
       overlayGroup.selectAll(".galactic-plane, .galactic-pole").style("display", e.target.checked ? "block" : "none");
       labelGroup.selectAll("text").filter(function() {
@@ -668,7 +595,7 @@
 
     // Initialize
     async function init() {
-      drawGrid();
+      drawAxisLabels();
       buildLegend();
 
       // Load all surveys
