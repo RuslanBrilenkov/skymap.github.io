@@ -1,5 +1,5 @@
 // Version 1.12.1 - Add UNIONS survey
-const VERSION = "1.13.1";
+const VERSION = "1.13.3";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -872,8 +872,8 @@ function refreshMOCLayers() {
     if (crossMatchActive && state.intersectionBlobUrl) {
       const intersectionLayer = A.MOCFromURL(state.intersectionBlobUrl, {
         color: "#ffffff",
-        opacity: 0.6,
-        lineWidth: 2,
+        opacity: 0.45,
+        lineWidth: 3,
         adaptativeDisplay: false,
       });
       state.aladin.addMOC(intersectionLayer);
@@ -1147,11 +1147,13 @@ async function applyCrossMatchEquirectangular() {
 
   const { surveyGroup, svg, xScale, yScale, innerWidth, innerHeight } = state.eqMap;
 
-  // 1. Grey out existing survey polygons
-  surveyGroup.selectAll(".eq-survey-polygon")
+  // 1. Grey out existing survey polygons and boundaries
+  surveyGroup.selectAll(".eq-survey-polygon path:not(.eq-survey-boundary)")
     .attr("fill", "#888888")
-    .attr("fill-opacity", 0.1)
-    .attr("stroke", "none");
+    .attr("fill-opacity", 0.1);
+  surveyGroup.selectAll(".eq-survey-boundary")
+    .attr("stroke", "#888888")
+    .attr("stroke-opacity", 0.3);
 
   // 2. Build clip paths from each selected survey's GeoJSON
   let defs = svg.select("defs");
@@ -1159,7 +1161,7 @@ async function applyCrossMatchEquirectangular() {
 
   // Remove old cross-match clips
   defs.selectAll(".crossmatch-clip").remove();
-  surveyGroup.selectAll(".crossmatch-highlight").remove();
+  surveyGroup.selectAll(".crossmatch-highlight, .crossmatch-outline").remove();
 
   const selectedSurveys = [...SURVEYS].filter((s) => state.selected.has(s.id));
 
@@ -1205,7 +1207,33 @@ async function applyCrossMatchEquirectangular() {
     .attr("width", innerWidth)
     .attr("height", innerHeight)
     .attr("fill", "#ffffff")
-    .attr("fill-opacity", 0.5);
+    .attr("fill-opacity", 0.4);
+
+  // 4. Draw intersection outline by clipping each survey boundary with all others
+  const outlineGroup = surveyGroup.append("g").attr("class", "crossmatch-outline");
+  selectedSurveys.forEach((survey) => {
+    const boundaryPaths = surveyGroup.selectAll(`.survey-${survey.id} .eq-survey-boundary`);
+    if (boundaryPaths.empty()) return;
+
+    let clipGroup = outlineGroup.append("g");
+    selectedSurveys.forEach((otherSurvey) => {
+      if (otherSurvey.id === survey.id) return;
+      const clipId = `clip-crossmatch-${otherSurvey.id}`;
+      if (defs.select(`#${clipId}`).empty()) return;
+      clipGroup = clipGroup.append("g").attr("clip-path", `url(#${clipId})`);
+    });
+
+    boundaryPaths.each(function () {
+      const d = d3.select(this).attr("d");
+      if (!d) return;
+      clipGroup.append("path")
+        .attr("d", d)
+        .attr("fill", "none")
+        .attr("stroke", "#ffffff")
+        .attr("stroke-width", 1.6)
+        .attr("stroke-opacity", 0.75);
+    });
+  });
 }
 
 // Helper: split ring at RA=0/360 seam (extracted from drawSurveyOnEqMap pattern)
@@ -1317,7 +1345,7 @@ function restoreEqMapNormalView() {
   const { surveyGroup, svg } = state.eqMap;
 
   // Remove cross-match highlight and clip paths
-  surveyGroup.selectAll(".crossmatch-highlight").remove();
+  surveyGroup.selectAll(".crossmatch-highlight, .crossmatch-outline").remove();
   const defs = svg.select("defs");
   if (!defs.empty()) {
     defs.selectAll(".crossmatch-clip").remove();
@@ -1943,6 +1971,11 @@ function drawSurveyOnEqMap(survey, geojson) {
     return `${pathParts.join(" ")} Z`;
   };
 
+  // Group all cells per survey
+  const group = surveyGroup.append("g")
+    .attr("class", `eq-survey-polygon survey-${survey.id}`);
+
+  // Draw filled cells
   polygons.forEach((polygon) => {
     const ring = polygon[0];
     const segments = splitRingAtSeam(ring);
@@ -1951,14 +1984,59 @@ function drawSurveyOnEqMap(survey, geojson) {
       const pathData = buildPathData(segment);
       if (!pathData) return;
 
-      surveyGroup.append("path")
-        .attr("class", `eq-survey-polygon survey-${survey.id}`)
+      group.append("path")
         .attr("d", pathData)
         .attr("fill", survey.color)
         .attr("fill-opacity", 0.4)
         .attr("stroke", "none");
     });
   });
+
+  // Compute and draw boundary outline (edges that appear in only one cell)
+  const edgeCounts = new Map();
+  const precision = 6;
+  const makeKey = (p1, p2) => {
+    const a = `${p1[0].toFixed(precision)},${p1[1].toFixed(precision)}`;
+    const b = `${p2[0].toFixed(precision)},${p2[1].toFixed(precision)}`;
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+  };
+
+  polygons.forEach((polygon) => {
+    const ring = polygon[0];
+    for (let i = 0; i < ring.length - 1; i++) {
+      const key = makeKey(ring[i], ring[i + 1]);
+      edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1);
+    }
+  });
+
+  const boundaryPathParts = [];
+  polygons.forEach((polygon) => {
+    const ring = polygon[0];
+    for (let i = 0; i < ring.length - 1; i++) {
+      const key = makeKey(ring[i], ring[i + 1]);
+      if (edgeCounts.get(key) !== 1) continue;
+
+      const p1 = ring[i];
+      const p2 = ring[i + 1];
+
+      // Skip edges that cross the RA seam
+      if (Math.abs(p2[0] - p1[0]) > 180) continue;
+
+      boundaryPathParts.push(
+        `M ${xScale(p1[0])} ${yScale(p1[1])} L ${xScale(p2[0])} ${yScale(p2[1])}`
+      );
+    }
+  });
+
+  if (boundaryPathParts.length > 0) {
+    group.append("path")
+      .attr("class", "eq-survey-boundary")
+      .attr("d", boundaryPathParts.join(" "))
+      .attr("fill", "none")
+      .attr("stroke", survey.color)
+      .attr("stroke-width", 1.5)
+      .attr("stroke-opacity", 0.8);
+  }
 }
 
 function removeSurveyFromEqMap(surveyId) {
