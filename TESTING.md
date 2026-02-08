@@ -14,7 +14,7 @@
 
 ### Start Local Server
 ```bash
-cd /Users/ruslanbrilenkov/Desktop/Ruslan/Programming/skymap.github.io
+cd /path/to/skymap.github.io
 python3 -m http.server 8003
 ```
 

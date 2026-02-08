@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-02-08 - Catalog Upload + Augmented Download + UI Updates
+
+### New Features
+- Catalog upload (CSV/TSV) with RA/Dec parsing, RA-hours auto-detection, and point rendering on Aladin + equirectangular maps.
+- Augmented catalog download adds boolean survey ID columns (only for selected surveys).
+- Select-all surveys row to toggle full selection on/off.
+- Light/Dark UI mode toggle in the top-right (map interiors unchanged).
+
+### Fixes
+- Cross-match intersection now has an outline in the equirectangular view.
+- Reset clears cross-match overlays and catalog points in one pass.
+- Aladin catalog layer is re-applied after map refreshes and cleared reliably.
+
+### Behavior Updates
+- Download button is disabled unless a catalog is loaded and at least one survey is selected.
+- Upload row limit temporarily disabled for local testing (TODO to restore).
+- Aladin view persistence disabled (map resets on refresh).
+
+---
+
 ## 2026-02-05 - Equirectangular Seam Wrap Fix
 
 ### Fixes
@@ -125,7 +145,7 @@ area = moc.sky_fraction * 41252.96  # Full sky in sq deg
 
 Test locally:
 ```bash
-cd /Users/ruslanbrilenkov/Desktop/Ruslan/Programming/skymap.github.io
+cd /path/to/skymap.github.io
 python3 -m http.server 8000
 # Open http://localhost:8000/
 ```
