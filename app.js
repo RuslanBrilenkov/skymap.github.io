@@ -13,6 +13,7 @@ const BASE_GEOJSON_URL = "./surveys/geojson/";
 const ANCHOR_MOC_URL = `${BASE_MOC_URL}anchor_moc.fits`;
 const STORAGE_KEY = "sky-coverage-settings-v2";
 const PERSIST_KEY = "sky-coverage-persist-enabled";
+const UI_THEME_KEY = "sky-coverage-ui-theme";
 
 const SURVEY_CONFIGS = [
   {
@@ -180,6 +181,7 @@ const elements = {
   surveyToggle: document.getElementById("survey-toggle"),
   surveyPanel: document.getElementById("survey-panel"),
   persistToggle: document.getElementById("persist-toggle"),
+  uiThemeToggle: document.getElementById("ui-theme-toggle"),
   crossMatchToggle: document.getElementById("crossmatch-toggle"),
   toastStack: document.getElementById("toast-stack"),
   projectionBtns: document.querySelectorAll(".projection-btn"),
@@ -199,6 +201,7 @@ init();
 async function init() {
   elements.coverageLog.textContent = "Initializing Aladin Lite…";
   const persistenceEnabled = restorePersistenceToggle();
+  restoreUiTheme();
   if (persistenceEnabled) {
     restoreSettings();
   }
@@ -334,6 +337,12 @@ async function init() {
         persistSettings();
         logStatus("Selected options remembered.");
       }
+    });
+  }
+  if (elements.uiThemeToggle) {
+    elements.uiThemeToggle.addEventListener("change", (event) => {
+      setUiTheme(event.target.checked ? "light" : "dark");
+      logStatus(`UI theme set to ${event.target.checked ? "Light" : "Dark"}.`);
     });
   }
 
@@ -1466,6 +1475,32 @@ function persistSettings() {
   } catch (error) {
     console.warn("Failed to persist settings:", error);
   }
+}
+
+function setUiTheme(mode) {
+  const isLight = mode === "light";
+  document.body.classList.toggle("light", isLight);
+  if (elements.uiThemeToggle) {
+    elements.uiThemeToggle.checked = isLight;
+  }
+  try {
+    localStorage.setItem(UI_THEME_KEY, isLight ? "light" : "dark");
+  } catch (error) {
+    console.warn("Failed to store UI theme:", error);
+  }
+}
+
+function restoreUiTheme() {
+  try {
+    const stored = localStorage.getItem(UI_THEME_KEY);
+    if (stored === "light") {
+      setUiTheme("light");
+      return;
+    }
+  } catch (error) {
+    console.warn("Failed to restore UI theme:", error);
+  }
+  setUiTheme("dark");
 }
 
 function restoreSettings() {
