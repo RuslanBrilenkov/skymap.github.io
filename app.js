@@ -2533,7 +2533,7 @@ function detectColumns(headers) {
 
 function handleCatalogUpload(file) {
   if (!file) return;
-  const maxRows = 1000;
+  const maxRows = null; // TODO: re-enable upload row limit after local testing
 
   const reader = new FileReader();
   reader.onload = () => {
@@ -2554,7 +2554,7 @@ function handleCatalogUpload(file) {
       }
 
       const dataRows = rows.slice(1);
-      if (dataRows.length > maxRows) {
+      if (maxRows && dataRows.length > maxRows) {
         showToast(`Catalog exceeds ${maxRows} rows (found ${dataRows.length}).`, "error", "catalog-limit", 3500);
         return;
       }
