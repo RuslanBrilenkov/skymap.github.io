@@ -10,3 +10,7 @@ AIDER.md
 # Claude/Codex config directories
 .claude/
 .codex/
+
+# Local catalog testing data
+testing_csv_upload/
+*.csv

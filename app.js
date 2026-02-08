@@ -167,6 +167,9 @@ const state = {
   catalogLayer: null,
   catalogPending: false,
   catalogRestored: false,
+  catalogRawHeaders: [],
+  catalogRawRows: [],
+  catalogRowInfo: [],
 };
 
 const elements = {
@@ -440,6 +443,7 @@ async function init() {
   }
 
   updateCatalogControls();
+  updateDownloadControls();
 }
 
 async function waitForAladin() {
@@ -1048,6 +1052,7 @@ function updateStats() {
     elements.intersectionArea.textContent = "--";
     elements.downloadButton.disabled = true;
     console.log("Area set to '--' (no selections)");
+    updateDownloadControls();
     return;
   }
 
@@ -1060,13 +1065,14 @@ function updateStats() {
     elements.intersectionArea.textContent = "computing...";
     const token = ++state.singleAreaToken;
     updateSingleSurveyArea(survey, token);
-    elements.downloadButton.disabled = true;
+    updateDownloadControls();
     return;
   }
 
   // For 2+ surveys, compute client-side intersections if wasm is available.
   elements.intersectionArea.textContent = "computing...";
   updateIntersectionArea();
+  updateDownloadControls();
 }
 
 async function ensureMocWasm() {
@@ -1611,6 +1617,9 @@ function persistSettings() {
       order: SURVEYS.map((survey) => survey.id),
       crossMatchOnly: state.crossMatchOnly,
       catalogPoints: state.catalogPoints,
+      catalogRawHeaders: state.catalogRawHeaders,
+      catalogRawRows: state.catalogRawRows,
+      catalogRowInfo: state.catalogRowInfo,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (error) {
@@ -1704,6 +1713,19 @@ function restoreSettings() {
         }));
       state.catalogRestored = state.catalogPoints.length > 0;
     }
+    if (Array.isArray(data.catalogRawHeaders)) {
+      state.catalogRawHeaders = data.catalogRawHeaders.map((h) => String(h));
+    }
+    if (Array.isArray(data.catalogRawRows)) {
+      state.catalogRawRows = data.catalogRawRows.map((row) => row.map((cell) => String(cell)));
+    }
+    if (Array.isArray(data.catalogRowInfo)) {
+      state.catalogRowInfo = data.catalogRowInfo.map((info) => ({
+        valid: Boolean(info.valid),
+        ra: Number.isFinite(info.ra) ? info.ra : null,
+        dec: Number.isFinite(info.dec) ? info.dec : null,
+      }));
+    }
   } catch (error) {
     console.warn("Failed to restore settings:", error);
   }
@@ -1772,9 +1794,94 @@ function forceAladinRedraw() {
   window.dispatchEvent(new Event("resize"));
 }
 
-function handleDownload() {
-  elements.coverageLog.textContent =
-    "Intersection download will be available in a future update.";
+async function handleDownload() {
+  if (!state.catalogRawRows.length || !state.catalogRowInfo.length) {
+    showToast("Upload a catalog before downloading.", "error", "download-no-catalog", 2500);
+    return;
+  }
+  if (state.selected.size === 0) {
+    showToast("Select at least one survey to download.", "error", "download-no-surveys", 2500);
+    return;
+  }
+
+  const selectedSurveys = SURVEYS.filter((survey) => state.selected.has(survey.id));
+  if (selectedSurveys.length === 0) {
+    showToast("Select at least one survey to download.", "error", "download-no-surveys", 2500);
+    return;
+  }
+
+  beginMapUpdate();
+  try {
+    const points = [];
+    const rowIndexes = [];
+    state.catalogRowInfo.forEach((info, index) => {
+      if (!info.valid) return;
+      points.push(info.ra, info.dec);
+      rowIndexes.push(index);
+    });
+
+    const coords = new Float64Array(points);
+    const coverageBySurvey = {};
+
+    for (const survey of selectedSurveys) {
+      const mocInstance = await loadSurveyMoc(survey);
+      if (!mocInstance || typeof mocInstance.filterCoos !== "function") {
+        throw new Error(`MOC filter unavailable for ${survey.id}`);
+      }
+      const result = mocInstance.filterCoos(coords);
+      const fullResults = new Array(state.catalogRowInfo.length).fill(false);
+      rowIndexes.forEach((rowIndex, idx) => {
+        fullResults[rowIndex] = result[idx] === 1;
+      });
+      coverageBySurvey[survey.id] = fullResults;
+    }
+
+    const headers = [...state.catalogRawHeaders];
+    // Note: using survey IDs for stable columns. Swap with survey.label if preferred.
+    selectedSurveys.forEach((survey) => headers.push(survey.id));
+
+    const lines = [];
+    lines.push(headers.map(csvEscape).join(","));
+
+    for (let i = 0; i < state.catalogRawRows.length; i++) {
+      const baseRow = state.catalogRawRows[i] || [];
+      const extended = headers.map((_, idx) => {
+        if (idx < state.catalogRawHeaders.length) {
+          return baseRow[idx] ?? "";
+        }
+        const survey = selectedSurveys[idx - state.catalogRawHeaders.length];
+        return coverageBySurvey[survey.id][i] ? "true" : "false";
+      });
+      lines.push(extended.map(csvEscape).join(","));
+    }
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "catalog_augmented.csv";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    showToast("Download ready.", "success", "download-ready", 1600);
+    logStatus("Download ready.");
+  } catch (error) {
+    console.error("Failed to generate download:", error);
+    showToast("Failed to build download file.", "error", "download-failed", 2500);
+    logStatus("Download failed.");
+  } finally {
+    endMapUpdate();
+  }
+}
+
+function csvEscape(value) {
+  const text = value == null ? "" : String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, "\"\"")}"`;
+  }
+  return text;
 }
 
 
@@ -2563,12 +2670,16 @@ function handleCatalogUpload(file) {
       let maxRa = -Infinity;
       let minRa = Infinity;
       let skipped = 0;
+      const rawRows = [];
+      const rowInfo = [];
 
       dataRows.forEach((row) => {
+        rawRows.push(row.slice());
         const rawRa = parseFloat(row[raIndex]);
         const rawDec = parseFloat(row[decIndex]);
         if (!Number.isFinite(rawRa) || !Number.isFinite(rawDec)) {
           skipped += 1;
+          rowInfo.push({ valid: false, ra: null, dec: null });
           return;
         }
         maxRa = Math.max(maxRa, rawRa);
@@ -2577,7 +2688,8 @@ function handleCatalogUpload(file) {
         headers.forEach((header, idx) => {
           record[header] = row[idx];
         });
-        points.push({ ra: rawRa, dec: rawDec, data: record });
+        points.push({ ra: rawRa, dec: rawDec, data: record, rowIndex: rawRows.length - 1 });
+        rowInfo.push({ valid: true, ra: rawRa, dec: rawDec });
       });
 
       if (points.length === 0) {
@@ -2596,11 +2708,22 @@ function handleCatalogUpload(file) {
         };
       });
 
+      const convertedRowInfo = rowInfo.map((info) => {
+        if (!info.valid) return info;
+        const raValue = shouldTreatAsHours ? info.ra * 15 : info.ra;
+        const raWrapped = ((raValue % 360) + 360) % 360;
+        return { valid: true, ra: raWrapped, dec: info.dec };
+      });
+
       state.catalogPoints = convertedPoints;
+      state.catalogRawHeaders = headers;
+      state.catalogRawRows = rawRows;
+      state.catalogRowInfo = convertedRowInfo;
       renderCatalogAladin();
       renderCatalogEquirectangular();
       persistSettings();
       updateCatalogControls();
+      updateDownloadControls();
 
       const hourNote = shouldTreatAsHours ? " (RA hours detected)" : "";
       showToast(`Loaded ${convertedPoints.length} sources${hourNote}.`, "success", "catalog-loaded", 2200);
@@ -2672,11 +2795,15 @@ function renderCatalogEquirectangular() {
 function clearCatalog(options = {}) {
   const { silent = false } = options;
   state.catalogPoints = [];
+  state.catalogRawHeaders = [];
+  state.catalogRawRows = [];
+  state.catalogRowInfo = [];
   removeAladinCatalogLayer();
   if (state.eqMap.catalogGroup) {
     state.eqMap.catalogGroup.selectAll(".eq-catalog-point").remove();
   }
   updateCatalogControls();
+  updateDownloadControls();
   persistSettings();
   if (!silent) {
     showToast("Catalog cleared.", "success", "catalog-cleared", 1600);
@@ -2723,6 +2850,13 @@ function updateCatalogControls() {
   if (elements.clearCatalogButton) {
     elements.clearCatalogButton.disabled = state.catalogPoints.length === 0;
   }
+}
+
+function updateDownloadControls() {
+  if (!elements.downloadButton) return;
+  const hasCatalog = state.catalogRawRows.length > 0 && state.catalogRowInfo.length > 0;
+  const hasSurveys = state.selected.size > 0;
+  elements.downloadButton.disabled = !(hasCatalog && hasSurveys);
 }
 
 function setActiveView(view) {
