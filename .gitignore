@@ -10,3 +10,26 @@ AIDER.md
 # Claude/Codex config directories
 .claude/
 .codex/
+
+# Local catalog testing data
+testing_csv_upload/
+*.csv
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python cache
+__pycache__/
+*.pyc
