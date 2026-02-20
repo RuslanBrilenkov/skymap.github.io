@@ -9,7 +9,7 @@
 7. ~~Add a feature to search which surveys the sources are present in.~~ **Done.**
 8. ~~Add a button to download the augmented CSV file.~~ **Done.**
 9. Add a feature to download crossmatched survey maps.
-15. Add Roman wide survey MOC to the survey list.
+15. ~~Add Roman wide survey MOC to the survey list.~~ **Done.** Roman HLWAS full footprint (~5314 sq deg, Wide + Medium tiers) and Deep Tier (~35.6 sq deg, COSMOS + XMM-LSS) added as separate survey entries (v2.3.0).
 16. ~~Allow users to upload their own MOC files to the sky map.~~ **Done.** Rasterized EQ map overlay; Aladin globe rendering; legend entry; cross-match and catalog membership integration; coverage area displayed when user MOC is the sole selection.
 10. ~~Make light mode theme update the EQ map background colors.~~ **Done.** Includes light-mode-aware cross-match highlight colors.
 11. Add EQ map RA/DEC range controls with Apply and EQ-only Reset.
