@@ -1,5 +1,5 @@
-// Version 1.12.1 - Add UNIONS survey
-const VERSION = "1.13.3";
+// Version 2.2.0 - Move legend to Aladin bottom bar
+const VERSION = "2.2.0";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -211,6 +211,7 @@ const elements = {
   viewBtns: document.querySelectorAll(".view-btn"),
   aladinDiv: document.getElementById("aladin-lite-div"),
   equirectDiv: document.getElementById("equirectangular-map"),
+  aladinControls: document.getElementById("aladin-controls"),
   equirectControls: document.getElementById("equirect-controls"),
   showGrid: document.getElementById("show-grid"),
   showGalactic: document.getElementById("show-galactic"),
@@ -274,7 +275,7 @@ async function init() {
 
   elements.mapStatus.textContent = "Map ready";
   elements.coverageLog.textContent = "Select a survey to load its MOC.";
-  elements.mocStatus.textContent = `MOC engine: ready (v2.0)`;
+  elements.mocStatus.textContent = `MOC engine: ready (v${VERSION})`;
   logStatus("Application ready.");
   console.log(`Sky Coverage Explorer v${VERSION} initialized`);
 
@@ -3241,6 +3242,7 @@ function setActiveView(view) {
     elements.aladinDiv.style.display = "block";
     elements.equirectDiv.style.display = "none";
     elements.equirectControls.style.display = "none";
+    elements.aladinControls.style.display = "flex";
     elements.mapTitle.textContent = "Aladin Lite V2";
     // Refresh MOC layers to sync with current selection
     if (state.selected.size > 0) {
@@ -3260,6 +3262,7 @@ function setActiveView(view) {
     elements.aladinDiv.style.display = "none";
     elements.equirectDiv.style.display = "block";
     elements.equirectControls.style.display = "flex";
+    elements.aladinControls.style.display = "none";
     elements.mapTitle.textContent = "Equirectangular Map";
 
     // Reinitialize if needed (e.g., after resize)

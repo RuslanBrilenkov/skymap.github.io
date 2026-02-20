@@ -16,6 +16,8 @@
 12. ~~Update the survey color palette.~~ **Done.** Replaced with 3 Paul Tol perceptual palettes (Rainbow, Iridescent, Vivid); all have 12+ distinct colors with no repeats.
 13. ~~Add an EQ map-specific legend rendered in-map (e.g., near RA degrees) for screenshots.~~ **Done.** Rectangular swatches with borders rendered directly on the EQ map SVG; updates dynamically with survey selection and user MOC. Auto multi-column layout (one new column per 3 surveys).
 17. ~~Add an EQ map PDF download button.~~ **Done.** "Download map (PDF)" button in the EQ map topbar; exports full map with in-map legend, axis labels, and overlays; theme-aware (light/dark).
+18. ~~Move EQ map controls (Grid, Galactic, Ecliptic, Download) out of the topbar.~~ **Done.** Controls relocated to a floating bottom bar in the map view; topbar is now identical in both Aladin and Equirectangular views.
+19. ~~Move legend from sidebar to Aladin view bottom bar.~~ **Done.** Legend removed from left panel; shown as a horizontal bottom bar in Aladin view; EQ view retains its in-map legend.
 14. Repository cleanup checklist (post-feature completion):
     - Add a short repository description.
     - README [done].
