@@ -1343,8 +1343,17 @@ async function updateIntersectionArea() {
 
 async function updateSingleSurveyArea(survey, token) {
   if (!survey) {
-    if (token === state.singleAreaToken) {
-      elements.intersectionArea.textContent = "--";
+    if (state.userMoc.selected && state.userMoc.mocInstance) {
+      // User MOC is the sole selection — compute and display its coverage
+      const coveragePercent = state.userMoc.mocInstance.coveragePercentage();
+      const areaSqDeg = (coveragePercent / 100) * FULL_SKY_AREA_SQ_DEG;
+      if (token === state.singleAreaToken) {
+        elements.intersectionArea.textContent = areaSqDeg.toFixed(2);
+      }
+    } else {
+      if (token === state.singleAreaToken) {
+        elements.intersectionArea.textContent = "--";
+      }
     }
     return;
   }
@@ -3245,7 +3254,7 @@ function setActiveView(view) {
     elements.aladinControls.style.display = "flex";
     elements.mapTitle.textContent = "Aladin Lite V2";
     // Refresh MOC layers to sync with current selection
-    if (state.selected.size > 0) {
+    if (state.selected.size > 0 || state.userMoc.selected) {
       if (state.crossMatchOnly && state.selected.size >= 2 && state.intersectionBlobUrl) {
         // In cross-match mode, use applyCrossMatchAladin which calls refreshMOCLayers internally
         applyCrossMatchAladin();

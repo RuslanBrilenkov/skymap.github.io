@@ -10,7 +10,7 @@
 8. ~~Add a button to download the augmented CSV file.~~ **Done.**
 9. Add a feature to download crossmatched survey maps.
 15. Add Roman wide survey MOC to the survey list.
-16. ~~Allow users to upload their own MOC files to the sky map.~~ **Done.** Rasterized EQ map overlay; Aladin globe rendering; legend entry; cross-match and catalog membership integration.
+16. ~~Allow users to upload their own MOC files to the sky map.~~ **Done.** Rasterized EQ map overlay; Aladin globe rendering; legend entry; cross-match and catalog membership integration; coverage area displayed when user MOC is the sole selection.
 10. ~~Make light mode theme update the EQ map background colors.~~ **Done.** Includes light-mode-aware cross-match highlight colors.
 11. Add EQ map RA/DEC range controls with Apply and EQ-only Reset.
 12. ~~Update the survey color palette.~~ **Done.** Replaced with 3 Paul Tol perceptual palettes (Rainbow, Iridescent, Vivid); all have 12+ distinct colors with no repeats.
