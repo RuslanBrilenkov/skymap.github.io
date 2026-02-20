@@ -762,8 +762,12 @@ function renderEqMapLegend() {
 
   const swatchW = 20, swatchH = 12, rowH = 20, padding = 8, textGap = 6;
   const maxLabelW = 130;
-  const panelW = padding + swatchW + textGap + maxLabelW + padding;
-  const panelH = entries.length * rowH + 2 * padding;
+  const colGap = 12;
+  const colW = swatchW + textGap + maxLabelW;
+  const numCols = Math.ceil(entries.length / 3);
+  const numRows = Math.ceil(entries.length / numCols);
+  const panelW = 2 * padding + numCols * colW + (numCols - 1) * colGap;
+  const panelH = numRows * rowH + 2 * padding;
   const { innerHeight } = state.eqMap;
   const lx = 8;
   const ly = innerHeight - panelH - 8;
@@ -778,12 +782,15 @@ function renderEqMapLegend() {
     .attr("style", "fill: var(--bg-ink); stroke: var(--ink-muted)");
 
   entries.forEach((entry, i) => {
-    const rowY = ly + padding + i * rowH;
+    const col = Math.floor(i / numRows);
+    const row = i % numRows;
+    const colX = lx + padding + col * (colW + colGap);
+    const rowY = ly + padding + row * rowH;
     const swatchY = rowY + (rowH - swatchH) / 2;
 
     // Rectangular swatch with border
     lg.append("rect")
-      .attr("x", lx + padding).attr("y", swatchY)
+      .attr("x", colX).attr("y", swatchY)
       .attr("width", swatchW).attr("height", swatchH)
       .attr("fill", entry.color)
       .attr("fill-opacity", 0.5)
@@ -792,7 +799,7 @@ function renderEqMapLegend() {
 
     // Label text
     lg.append("text")
-      .attr("x", lx + padding + swatchW + textGap)
+      .attr("x", colX + swatchW + textGap)
       .attr("y", rowY + rowH / 2)
       .attr("dominant-baseline", "middle")
       .attr("font-size", "11px")

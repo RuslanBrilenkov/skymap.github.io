@@ -14,7 +14,7 @@
 10. ~~Make light mode theme update the EQ map background colors.~~ **Done.** Includes light-mode-aware cross-match highlight colors.
 11. Add EQ map RA/DEC range controls with Apply and EQ-only Reset.
 12. Update the survey color palette.
-13. ~~Add an EQ map-specific legend rendered in-map (e.g., near RA degrees) for screenshots.~~ **Done.** Rectangular swatches with borders rendered directly on the EQ map SVG; updates dynamically with survey selection and user MOC.
+13. ~~Add an EQ map-specific legend rendered in-map (e.g., near RA degrees) for screenshots.~~ **Done.** Rectangular swatches with borders rendered directly on the EQ map SVG; updates dynamically with survey selection and user MOC. Auto multi-column layout (one new column per 3 surveys).
 14. Repository cleanup checklist (post-feature completion):
     - Add a short repository description.
     - README [done].
