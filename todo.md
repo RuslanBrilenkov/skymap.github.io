@@ -13,7 +13,7 @@
 16. ~~Allow users to upload their own MOC files to the sky map.~~ **Done.** Rasterized EQ map overlay; Aladin globe rendering; legend entry; cross-match and catalog membership integration.
 10. ~~Make light mode theme update the EQ map background colors.~~ **Done.** Includes light-mode-aware cross-match highlight colors.
 11. Add EQ map RA/DEC range controls with Apply and EQ-only Reset.
-12. Update the survey color palette.
+12. ~~Update the survey color palette.~~ **Done.** Replaced with 3 Paul Tol perceptual palettes (Rainbow, Iridescent, Vivid); all have 12+ distinct colors with no repeats.
 13. ~~Add an EQ map-specific legend rendered in-map (e.g., near RA degrees) for screenshots.~~ **Done.** Rectangular swatches with borders rendered directly on the EQ map SVG; updates dynamically with survey selection and user MOC. Auto multi-column layout (one new column per 3 surveys).
 17. ~~Add an EQ map PDF download button.~~ **Done.** "Download map (PDF)" button in the EQ map topbar; exports full map with in-map legend, axis labels, and overlays; theme-aware (light/dark).
 14. Repository cleanup checklist (post-feature completion):

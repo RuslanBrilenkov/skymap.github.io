@@ -84,50 +84,53 @@ const SURVEY_CONFIGS = [
 ];
 
 const COLOR_THEMES = {
+  // Paul Tol 14-color Discrete Rainbow — full spectrum spread
   default: {
+    label: "Rainbow",
+    colors: {
+      kids:        "#AA6F9E",
+      euclid:      "#882E72",
+      hsc:         "#1965B0",
+      des:         "#6195CF",
+      unions:      "#4EB265",
+      desi_legacy: "#F7CB45",
+      erass1:      "#EE8026",
+      lsst_wfd:    "#DC050C",
+    },
+  },
+  // Paul Tol 23-color Iridescent — sequential blue-to-plum
+  iridescent: {
+    label: "Iridescent",
+    colors: {
+      kids:        "#C2E3D2",
+      euclid:      "#A8D8DC",
+      hsc:         "#8DCBE4",
+      des:         "#7BBCE7",
+      unions:      "#88A5DD",
+      desi_legacy: "#9B8AC4",
+      erass1:      "#9A709E",
+      lsst_wfd:    "#805770",
+    },
+  },
+  // Paul Tol 23-color Discrete Rainbow — warm/sage emphasis
+  vivid: {
     label: "Vivid",
     colors: {
-      euclid: "#7de7c6",
-      erass1: "#ff6b6b",
-      des: "#f7931a",
-      unions: "#f9b25c",
-      desi_legacy: "#f5b352",
-      hsc: "#7a7aed",
-      kids: "#4cbcac",
-      lsst_wfd: "#2ab7a9",
-    },
-  },
-  colorblind: {
-    label: "Color-blind friendly",
-    colors: {
-      euclid: "#0072B2",
-      erass1: "#D55E00",
-      des: "#E69F00",
-      unions: "#F0E442",
-      desi_legacy: "#009E73",
-      hsc: "#56B4E9",
-      kids: "#009E73",
-      lsst_wfd: "#009E73",
-    },
-  },
-  pastel: {
-    label: "Pastel",
-    colors: {
-      euclid: "#9ad9c7",
-      erass1: "#f4a7b9",
-      des: "#f4c199",
-      unions: "#f5d1a9",
-      desi_legacy: "#f2c2a2",
-      hsc: "#c1c6f2",
-      kids: "#bfe7df",
-      lsst_wfd: "#b8e3dd",
+      kids:        "#BA8DB4",
+      euclid:      "#1965B0",
+      hsc:         "#437DBF",
+      des:         "#90C987",
+      unions:      "#F7F056",
+      desi_legacy: "#F4A736",
+      erass1:      "#E65518",
+      lsst_wfd:    "#A5170E",
     },
   },
 };
 
 let SURVEYS = SURVEY_CONFIGS.map((survey) => ({
   ...survey,
-  color: COLOR_THEMES.colorblind.colors[survey.id] || "#7de7c6",
+  color: COLOR_THEMES.default.colors[survey.id] || "#7de7c6",
 }));
 
 const state = {
@@ -142,7 +145,7 @@ const state = {
   singleAreaToken: 0,
   refreshTimer: null,
   isUpdatingCount: 0,
-  activeTheme: "colorblind",
+  activeTheme: "default",
   activeProjection: "SIN",
   activeView: "aladin",  // "aladin" or "equirectangular"
   dragSurveyId: null,
@@ -271,7 +274,7 @@ async function init() {
 
   elements.mapStatus.textContent = "Map ready";
   elements.coverageLog.textContent = "Select a survey to load its MOC.";
-  elements.mocStatus.textContent = `MOC engine: ready (v${VERSION})`;
+  elements.mocStatus.textContent = `MOC engine: ready (v2.0)`;
   logStatus("Application ready.");
   console.log(`Sky Coverage Explorer v${VERSION} initialized`);
 
@@ -806,7 +809,7 @@ function renderEqMapLegend() {
       .attr("x", colX + swatchW + textGap)
       .attr("y", rowY + rowH / 2)
       .attr("dominant-baseline", "middle")
-      .attr("font-size", "11px")
+      .attr("font-size", "13px")
       .attr("style", "fill: var(--ink)")
       .text(entry.label);
   });
@@ -2003,13 +2006,13 @@ async function handleMapDownload() {
   const gridStroke = isLight ? "rgba(27,36,51,0.2)" : "rgba(255,255,255,0.15)";
   const cssText = `
     .eq-grid-line { stroke: ${gridStroke}; stroke-width: 0.5; fill: none; }
-    .eq-grid-label { fill: ${cssVars["--ink-muted"]}; font-size: 10px; font-family: sans-serif; }
+    .eq-grid-label { fill: ${cssVars["--ink-muted"]}; font-size: 14px; font-family: sans-serif; }
     .eq-galactic-plane { stroke: #00bcd4; stroke-width: 1.5; stroke-dasharray: 5,3; fill: none; }
     .eq-ecliptic-plane { stroke: #ffc107; stroke-width: 1.5; fill: none; }
     .eq-survey-polygon { stroke-width: 0.5; stroke-opacity: 0.8; }
     .eq-catalog-point { fill: #ff6f8e; opacity: 0.85; }
-    .eq-pole-label { fill: ${cssVars["--ink-muted"]}; font-size: 10px; font-family: sans-serif; }
-    .eq-axis-label { fill: ${cssVars["--ink"]}; font-size: 11px; font-family: sans-serif; }
+    .eq-pole-label { fill: ${cssVars["--ink-muted"]}; font-size: 14px; font-family: sans-serif; }
+    .eq-axis-label { fill: ${cssVars["--ink"]}; font-size: 15px; font-family: sans-serif; }
   `;
 
   // 3. Clone SVG, inject <style>, resolve inline var() references

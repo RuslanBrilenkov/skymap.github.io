@@ -647,7 +647,7 @@ body.light #equirectangular-map .eq-grid-line {
 
 .eq-grid-label {
   fill: var(--ink-muted);
-  font-size: 10px;
+  font-size: 14px;
   font-family: "Space Grotesk", sans-serif;
 }
 
@@ -680,13 +680,13 @@ body.light #equirectangular-map .eq-grid-line {
 
 .eq-pole-label {
   fill: var(--ink-muted);
-  font-size: 10px;
+  font-size: 14px;
   font-family: "Space Grotesk", sans-serif;
 }
 
 .eq-axis-label {
   fill: var(--ink);
-  font-size: 11px;
+  font-size: 15px;
   font-family: "Space Grotesk", sans-serif;
 }
 
