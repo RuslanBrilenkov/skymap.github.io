@@ -1,5 +1,5 @@
-// Version 2.2.0 - Move legend to Aladin bottom bar
-const VERSION = "2.2.0";
+// Version 2.3.0 - Add Roman HLWAS full footprint and Deep Tier
+const VERSION = "2.3.0";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -81,6 +81,22 @@ const SURVEY_CONFIGS = [
     geojsonFile: "lsst_wfd_footprint_moc.geojson",
     opacity: 0.45,
   },
+  {
+    id: "roman_hlwas",
+    label: "Roman HLWAS",
+    description: "Nancy Grace Roman HLWAS footprint (Wide + Medium tiers, ~5100 sq deg)",
+    mocUrl: `${BASE_MOC_URL}roman_hlwas_footprint_moc.fits`,
+    geojsonFile: "roman_hlwas_footprint_moc.geojson",
+    opacity: 0.45,
+  },
+  {
+    id: "roman_hlwas_deep",
+    label: "Roman HLWAS Deep",
+    description: "Roman HLWAS Deep Tier — COSMOS and XMM-LSS calibration fields (~19 sq deg)",
+    mocUrl: `${BASE_MOC_URL}roman_hlwas_deep_footprint_moc.fits`,
+    geojsonFile: "roman_hlwas_deep_footprint_moc.geojson",
+    opacity: 0.45,
+  },
 ];
 
 const COLOR_THEMES = {
@@ -94,8 +110,10 @@ const COLOR_THEMES = {
       des:         "#6195CF",
       unions:      "#4EB265",
       desi_legacy: "#F7CB45",
-      erass1:      "#EE8026",
-      lsst_wfd:    "#DC050C",
+      erass1:          "#EE8026",
+      lsst_wfd:        "#DC050C",
+      roman_hlwas:     "#DDCC77",
+      roman_hlwas_deep:"#44AA99",
     },
   },
   // Paul Tol 23-color Iridescent — sequential blue-to-plum
@@ -108,8 +126,10 @@ const COLOR_THEMES = {
       des:         "#7BBCE7",
       unions:      "#88A5DD",
       desi_legacy: "#9B8AC4",
-      erass1:      "#9A709E",
-      lsst_wfd:    "#805770",
+      erass1:          "#9A709E",
+      lsst_wfd:        "#805770",
+      roman_hlwas:     "#CABD8B",
+      roman_hlwas_deep:"#7EC8D0",
     },
   },
   // Paul Tol 23-color Discrete Rainbow — warm/sage emphasis
@@ -122,8 +142,10 @@ const COLOR_THEMES = {
       des:         "#90C987",
       unions:      "#F7F056",
       desi_legacy: "#F4A736",
-      erass1:      "#E65518",
-      lsst_wfd:    "#A5170E",
+      erass1:          "#E65518",
+      lsst_wfd:        "#A5170E",
+      roman_hlwas:     "#E8D84C",
+      roman_hlwas_deep:"#44AA99",
     },
   },
 };
