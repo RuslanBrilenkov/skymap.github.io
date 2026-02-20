@@ -615,7 +615,7 @@ body:not(.light) .theme-toggle__label:first-child {
 
 /* Equirectangular map container */
 #equirectangular-map {
-  background: #0b0f1f;
+  background: var(--bg-ink);
   overflow: hidden;
 }
 
@@ -629,6 +629,10 @@ body:not(.light) .theme-toggle__label:first-child {
   stroke: rgba(255, 255, 255, 0.15);
   stroke-width: 0.5;
   fill: none;
+}
+
+body.light #equirectangular-map .eq-grid-line {
+  stroke: rgba(27, 36, 51, 0.2);
 }
 
 .eq-grid-label {
@@ -676,14 +680,6 @@ body:not(.light) .theme-toggle__label:first-child {
   font-family: "Space Grotesk", sans-serif;
 }
 
-body.light #equirectangular-map .eq-grid-label,
-body.light #equirectangular-map .eq-pole-label {
-  fill: #a8b0cf;
-}
-
-body.light #equirectangular-map .eq-axis-label {
-  fill: #e9eefc;
-}
 
 #aladin-lite-div {
   width: 100%;

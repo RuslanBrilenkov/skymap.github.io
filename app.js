@@ -1349,6 +1349,10 @@ async function applyCrossMatchEquirectangular() {
   }
 
   // 3. Draw intersection highlight with nested clip paths
+  const isLight = document.body.classList.contains("light");
+  const highlightColor = isLight ? "#1b2433" : "#ffffff";
+  const highlightFillOpacity = isLight ? 0.2 : 0.4;
+
   let group = surveyGroup.append("g").attr("class", "crossmatch-highlight");
   for (const survey of selectedSurveys) {
     const clipId = `clip-crossmatch-${survey.id}`;
@@ -1359,8 +1363,8 @@ async function applyCrossMatchEquirectangular() {
   group.append("rect")
     .attr("width", innerWidth)
     .attr("height", innerHeight)
-    .attr("fill", "#ffffff")
-    .attr("fill-opacity", 0.4);
+    .attr("fill", highlightColor)
+    .attr("fill-opacity", highlightFillOpacity);
 
   // 4. Draw intersection outline by clipping each survey boundary with all others
   const outlineGroup = surveyGroup.append("g").attr("class", "crossmatch-outline");
@@ -1382,7 +1386,7 @@ async function applyCrossMatchEquirectangular() {
       clipGroup.append("path")
         .attr("d", d)
         .attr("fill", "none")
-        .attr("stroke", "#ffffff")
+        .attr("stroke", highlightColor)
         .attr("stroke-width", 1.6)
         .attr("stroke-opacity", 0.75);
     });
@@ -1637,6 +1641,9 @@ function setUiTheme(mode) {
     localStorage.setItem(UI_THEME_KEY, isLight ? "light" : "dark");
   } catch (error) {
     console.warn("Failed to store UI theme:", error);
+  }
+  if (state.crossMatchOnly && state.selected.size >= 2 && state.eqMap.initialized) {
+    applyCrossMatchEquirectangular();
   }
 }
 
@@ -1932,7 +1939,7 @@ function initEquirectangularMap() {
   svg.append("rect")
     .attr("width", width)
     .attr("height", height)
-    .attr("fill", "#0b0f1f");
+    .attr("style", "fill: var(--bg-ink)");
 
   // Main group with margins
   const g = svg.append("g")
@@ -1942,7 +1949,7 @@ function initEquirectangularMap() {
   g.append("rect")
     .attr("width", innerWidth)
     .attr("height", innerHeight)
-    .attr("fill", "#111730");
+    .attr("style", "fill: var(--bg-ink-soft)");
 
   // Groups for layering (order matters for z-index)
   state.eqMap.gridGroup = g.append("g").attr("class", "eq-grid-group");

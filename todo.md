@@ -6,9 +6,11 @@
 4. ~~Add UI to upload a source catalog from the user.~~ **Done.**
 5. ~~Add "Select all surveys" option in the survey list.~~ **Done.**
 6. ~~Add a "Show cross-match only" mode that highlights intersection areas.~~ **Done.**
-7. Add a feature to search which surveys the sources are present in.
-8. Add a button to download the augmented CSV file.
+7. ~~Add a feature to search which surveys the sources are present in.~~ **Done.**
+8. ~~Add a button to download the augmented CSV file.~~ **Done.**
 9. Add a feature to download crossmatched survey maps.
+15. Add Roman wide survey MOC to the survey list.
+16. Allow users to upload their own MOC files to the sky map.
 10. Make light mode theme update the EQ map background colors.
 11. Add EQ map RA/DEC range controls with Apply and EQ-only Reset.
 12. Update the survey color palette.
