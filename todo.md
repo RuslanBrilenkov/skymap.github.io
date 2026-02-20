@@ -18,6 +18,7 @@
 17. ~~Add an EQ map PDF download button.~~ **Done.** "Download map (PDF)" button in the EQ map topbar; exports full map with in-map legend, axis labels, and overlays; theme-aware (light/dark).
 18. ~~Move EQ map controls (Grid, Galactic, Ecliptic, Download) out of the topbar.~~ **Done.** Controls relocated to a floating bottom bar in the map view; topbar is now identical in both Aladin and Equirectangular views.
 19. ~~Move legend from sidebar to Aladin view bottom bar.~~ **Done.** Legend removed from left panel; shown as a horizontal bottom bar in Aladin view; EQ view retains its in-map legend.
+20. ~~Add a "How to use this" button linking to the instructions page.~~ **Done.** Button added below app title in sidebar; links to lammimahad.com/survey-explorer-instructions (opens in new tab).
 14. Repository cleanup checklist (post-feature completion):
     - Add a short repository description.
     - README [done].
