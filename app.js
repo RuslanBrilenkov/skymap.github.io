@@ -170,6 +170,13 @@ const state = {
   catalogRawHeaders: [],
   catalogRawRows: [],
   catalogRowInfo: [],
+  userMoc: {
+    selected: false,
+    label: null,
+    color: "#f06292",   // pink — distinct from all built-in theme colors
+    mocUrl: null,       // Blob URL (revoked on clear/replace)
+    mocInstance: null,  // moc-wasm MOC object for cross-match + filterCoos
+  },
 };
 
 const elements = {
@@ -206,6 +213,9 @@ const elements = {
   showGalactic: document.getElementById("show-galactic"),
   showEcliptic: document.getElementById("show-ecliptic"),
   skyMapSvg: document.getElementById("sky-map"),
+  uploadMocButton: document.getElementById("upload-moc-button"),
+  uploadMocInput: document.getElementById("upload-moc-input"),
+  clearMocButton: document.getElementById("clear-moc-button"),
 };
 
 init();
@@ -373,6 +383,17 @@ async function init() {
   }
   if (elements.clearCatalogButton) {
     elements.clearCatalogButton.addEventListener("click", clearCatalog);
+  }
+  if (elements.uploadMocButton && elements.uploadMocInput) {
+    elements.uploadMocButton.addEventListener("click", () => elements.uploadMocInput.click());
+    elements.uploadMocInput.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (file) handleMocUpload(file);
+      event.target.value = "";
+    });
+  }
+  if (elements.clearMocButton) {
+    elements.clearMocButton.addEventListener("click", clearUserMoc);
   }
 
   // Cross-match toggle
@@ -575,6 +596,51 @@ function renderSurveyList() {
     elements.surveyList.appendChild(item);
   });
 
+  // Append user MOC entry if one is loaded
+  if (state.userMoc.mocUrl) {
+    const item = document.createElement("div");
+    item.className = "survey-item user-moc-item";
+
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = state.userMoc.selected;
+    checkbox.setAttribute("aria-label", state.userMoc.label);
+    checkbox.addEventListener("change", async (event) => {
+      state.userMoc.selected = event.target.checked;
+      refreshMOCLayers();
+      await renderUserMocOnEqMap();
+      renderEqMapLegend();
+      updateStats();
+      renderLegend();
+      if (state.crossMatchOnly) {
+        const total = state.selected.size + (state.userMoc.selected ? 1 : 0);
+        if (total >= 2) {
+          enterCrossMatchMode();
+        } else {
+          exitCrossMatchMode();
+        }
+      }
+    });
+
+    const name = document.createElement("span");
+    name.textContent = state.userMoc.label;
+    label.appendChild(checkbox);
+    label.appendChild(name);
+
+    const badge = document.createElement("span");
+    badge.className = "badge user";
+    const shortLabel = state.userMoc.label.length > 12
+      ? state.userMoc.label.slice(0, 11) + "…"
+      : state.userMoc.label;
+    badge.textContent = shortLabel;
+    badge.title = state.userMoc.label;
+
+    item.appendChild(label);
+    item.appendChild(badge);
+    elements.surveyList.appendChild(item);
+  }
+
   updateSurveyToggleLabel();
 }
 
@@ -662,6 +728,76 @@ function renderLegend() {
     item.appendChild(swatch);
     item.appendChild(label);
     elements.legendList.appendChild(item);
+  });
+
+  if (state.userMoc.mocUrl && state.userMoc.selected) {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    swatch.style.backgroundColor = state.userMoc.color;
+
+    const label = document.createElement("span");
+    label.textContent = state.userMoc.label;
+
+    item.appendChild(swatch);
+    item.appendChild(label);
+    elements.legendList.appendChild(item);
+  }
+}
+
+function renderEqMapLegend() {
+  if (!state.eqMap.initialized || !state.eqMap.inMapLegendGroup) return;
+  const lg = state.eqMap.inMapLegendGroup;
+  lg.selectAll("*").remove();
+
+  const entries = SURVEYS
+    .filter(s => state.selected.has(s.id))
+    .map(s => ({ color: s.color, label: s.label }));
+  if (state.userMoc.selected && state.userMoc.mocUrl) {
+    entries.push({ color: state.userMoc.color, label: state.userMoc.label });
+  }
+  if (entries.length === 0) return;
+
+  const swatchW = 20, swatchH = 12, rowH = 20, padding = 8, textGap = 6;
+  const maxLabelW = 130;
+  const panelW = padding + swatchW + textGap + maxLabelW + padding;
+  const panelH = entries.length * rowH + 2 * padding;
+  const { innerHeight } = state.eqMap;
+  const lx = 8;
+  const ly = innerHeight - panelH - 8;
+
+  // Background panel
+  lg.append("rect")
+    .attr("x", lx).attr("y", ly)
+    .attr("width", panelW).attr("height", panelH)
+    .attr("rx", 4)
+    .attr("fill-opacity", 0.8)
+    .attr("stroke-width", 0.5)
+    .attr("style", "fill: var(--bg-ink); stroke: var(--ink-muted)");
+
+  entries.forEach((entry, i) => {
+    const rowY = ly + padding + i * rowH;
+    const swatchY = rowY + (rowH - swatchH) / 2;
+
+    // Rectangular swatch with border
+    lg.append("rect")
+      .attr("x", lx + padding).attr("y", swatchY)
+      .attr("width", swatchW).attr("height", swatchH)
+      .attr("fill", entry.color)
+      .attr("fill-opacity", 0.5)
+      .attr("stroke", entry.color)
+      .attr("stroke-width", 1.5);
+
+    // Label text
+    lg.append("text")
+      .attr("x", lx + padding + swatchW + textGap)
+      .attr("y", rowY + rowH / 2)
+      .attr("dominant-baseline", "middle")
+      .attr("font-size", "11px")
+      .attr("style", "fill: var(--ink)")
+      .text(entry.label);
   });
 }
 
@@ -824,11 +960,13 @@ function handleSurveyToggle(survey, isChecked) {
 
   updateStats();
   renderLegend();
+  renderEqMapLegend();
   updateSurveyToggleLabel();
   persistSettings();
 
   if (state.crossMatchOnly) {
-    if (state.selected.size >= 2) {
+    const total = state.selected.size + (state.userMoc.selected ? 1 : 0);
+    if (total >= 2) {
       // Re-compute intersection for the new survey set
       enterCrossMatchMode();
     } else {
@@ -1008,6 +1146,20 @@ function refreshMOCLayers() {
       if (loadedItem) loadedItem.classList.remove("is-loading");
     });
 
+    // Add user MOC layer if selected
+    if (state.userMoc.mocUrl && state.userMoc.selected) {
+      const totalSelected = state.selected.size + 1;
+      const crossMatchActiveUser = state.crossMatchOnly && totalSelected >= 2;
+      const userLayer = A.MOCFromURL(state.userMoc.mocUrl, {
+        color: crossMatchActiveUser ? "#888888" : state.userMoc.color,
+        opacity: crossMatchActiveUser ? 0.3 : 0.45,
+        lineWidth: 2,
+        adaptativeDisplay: false,
+      });
+      state.aladin.addMOC(userLayer);
+      state.layers.set("__user_moc__", userLayer);
+    }
+
     // Add intersection overlay if cross-match is active
     const crossMatchActive = state.crossMatchOnly && state.selected.size >= 2;
     if (crossMatchActive && state.intersectionBlobUrl) {
@@ -1043,12 +1195,13 @@ function updateStats() {
   }
 
   const selectedCount = state.selected.size;
-  elements.selectedCount.textContent = String(selectedCount);
+  const totalCount = selectedCount + (state.userMoc.selected ? 1 : 0);
+  elements.selectedCount.textContent = String(totalCount);
 
-  console.log(`updateStats called. Selected count: ${selectedCount}`);
+  console.log(`updateStats called. Selected count: ${totalCount}`);
   console.log(`Selected surveys: ${Array.from(state.selected).join(', ')}`);
 
-  if (selectedCount === 0) {
+  if (totalCount === 0) {
     elements.intersectionArea.textContent = "--";
     elements.downloadButton.disabled = true;
     console.log("Area set to '--' (no selections)");
@@ -1056,12 +1209,12 @@ function updateStats() {
     return;
   }
 
-  if (selectedCount === 1) {
-    // Show single survey area
-    const surveyId = Array.from(state.selected)[0];
-    const survey = SURVEYS.find(s => s.id === surveyId);
+  if (totalCount === 1) {
+    // Show single survey area — either one built-in or user MOC alone
+    const surveyId = selectedCount === 1 ? Array.from(state.selected)[0] : null;
+    const survey = surveyId ? SURVEYS.find(s => s.id === surveyId) : null;
 
-    console.log(`Found survey: ${survey ? survey.label : 'not found'}`);
+    console.log(`Found survey: ${survey ? survey.label : (state.userMoc.selected ? state.userMoc.label : 'not found')}`);
     elements.intersectionArea.textContent = "computing...";
     const token = ++state.singleAreaToken;
     updateSingleSurveyArea(survey, token);
@@ -1116,7 +1269,8 @@ async function loadSurveyMoc(survey) {
 async function updateIntersectionArea() {
   const token = ++state.intersectionToken;
   const selectedIds = Array.from(state.selected).sort();
-  if (selectedIds.length < 2) {
+  const userMocCount = state.userMoc.selected && state.userMoc.mocInstance ? 1 : 0;
+  if (selectedIds.length + userMocCount < 2) {
     return;
   }
 
@@ -1125,7 +1279,7 @@ async function updateIntersectionArea() {
       .map((id) => SURVEYS.find((survey) => survey.id === id))
       .filter(Boolean);
 
-    if (surveys.length < 2) {
+    if (surveys.length + userMocCount < 2) {
       elements.intersectionArea.textContent = "unavailable";
       return;
     }
@@ -1138,6 +1292,9 @@ async function updateIntersectionArea() {
       const mocs = [];
       for (const survey of surveys) {
         mocs.push(await loadSurveyMoc(survey));
+      }
+      if (state.userMoc.selected && state.userMoc.mocInstance) {
+        mocs.push(state.userMoc.mocInstance);
       }
       let intersection = mocs[0];
       for (let index = 1; index < mocs.length; index += 1) {
@@ -1210,7 +1367,8 @@ async function handleCrossMatchToggle(event) {
   state.crossMatchOnly = event.target.checked;
 
   if (state.crossMatchOnly) {
-    if (state.selected.size >= 2) {
+    const total = state.selected.size + (state.userMoc.selected ? 1 : 0);
+    if (total >= 2) {
       await enterCrossMatchMode();
     }
   } else {
@@ -1236,9 +1394,13 @@ async function enterCrossMatchMode() {
       .map((id) => SURVEYS.find((s) => s.id === id))
       .filter(Boolean);
 
-    if (selectedSurveys.length < 2) return;
+    const totalForCrossMatch = selectedSurveys.length + (state.userMoc.selected && state.userMoc.mocInstance ? 1 : 0);
+    if (totalForCrossMatch < 2) return;
 
     const mocs = await Promise.all(selectedSurveys.map((s) => loadSurveyMoc(s)));
+    if (state.userMoc.selected && state.userMoc.mocInstance) {
+      mocs.push(state.userMoc.mocInstance);
+    }
 
     let intersection = mocs[0];
     for (let i = 1; i < mocs.length; i++) {
@@ -1307,6 +1469,10 @@ async function applyCrossMatchEquirectangular() {
   surveyGroup.selectAll(".eq-survey-boundary")
     .attr("stroke", "#888888")
     .attr("stroke-opacity", 0.3);
+  // Grey out user MOC raster too
+  surveyGroup.select(".user-moc-raster").selectAll("rect")
+    .attr("fill", "#888888")
+    .attr("fill-opacity", 0.1);
 
   // 2. Build clip paths from each selected survey's GeoJSON
   let defs = svg.select("defs");
@@ -1806,13 +1972,14 @@ async function handleDownload() {
     showToast("Upload a catalog before downloading.", "error", "download-no-catalog", 2500);
     return;
   }
-  if (state.selected.size === 0) {
+  const hasAnySurvey = state.selected.size > 0 || state.userMoc.selected;
+  if (!hasAnySurvey) {
     showToast("Select at least one survey to download.", "error", "download-no-surveys", 2500);
     return;
   }
 
   const selectedSurveys = SURVEYS.filter((survey) => state.selected.has(survey.id));
-  if (selectedSurveys.length === 0) {
+  if (selectedSurveys.length === 0 && !state.userMoc.selected) {
     showToast("Select at least one survey to download.", "error", "download-no-surveys", 2500);
     return;
   }
@@ -1843,9 +2010,22 @@ async function handleDownload() {
       coverageBySurvey[survey.id] = fullResults;
     }
 
+    // Include user MOC in catalog membership check
+    if (state.userMoc.selected && state.userMoc.mocInstance) {
+      const result = state.userMoc.mocInstance.filterCoos(coords);
+      const fullResults = new Array(state.catalogRowInfo.length).fill(false);
+      rowIndexes.forEach((rowIndex, idx) => {
+        fullResults[rowIndex] = result[idx] === 1;
+      });
+      coverageBySurvey["__user_moc__"] = fullResults;
+    }
+
     const headers = [...state.catalogRawHeaders];
     // Note: using survey IDs for stable columns. Swap with survey.label if preferred.
     selectedSurveys.forEach((survey) => headers.push(survey.id));
+    if (state.userMoc.selected && state.userMoc.mocInstance) {
+      headers.push(state.userMoc.label);
+    }
 
     const lines = [];
     lines.push(headers.map(csvEscape).join(","));
@@ -1856,8 +2036,11 @@ async function handleDownload() {
         if (idx < state.catalogRawHeaders.length) {
           return baseRow[idx] ?? "";
         }
-        const survey = selectedSurveys[idx - state.catalogRawHeaders.length];
-        return coverageBySurvey[survey.id][i] ? "true" : "false";
+        const surveyIdx = idx - state.catalogRawHeaders.length;
+        if (surveyIdx < selectedSurveys.length) {
+          return coverageBySurvey[selectedSurveys[surveyIdx].id][i] ? "true" : "false";
+        }
+        return coverageBySurvey["__user_moc__"][i] ? "true" : "false";
       });
       lines.push(extended.map(csvEscape).join(","));
     }
@@ -1957,6 +2140,7 @@ function initEquirectangularMap() {
   state.eqMap.overlayGroup = g.append("g").attr("class", "eq-overlay-group");
   state.eqMap.catalogGroup = g.append("g").attr("class", "eq-catalog-group");
   state.eqMap.labelGroup = g.append("g").attr("class", "eq-label-group");
+  state.eqMap.inMapLegendGroup = g.append("g").attr("class", "eq-in-map-legend-group");
 
   state.eqMap.svg = svg;
   state.eqMap.innerWidth = innerWidth;
@@ -2577,6 +2761,9 @@ async function refreshEqMapSurveys(options = {}) {
   if (state.crossMatchOnly && state.selected.size >= 2) {
     await applyCrossMatchEquirectangular();
   }
+
+  await renderUserMocOnEqMap();
+  renderEqMapLegend();
 }
 
 function parseDelimited(text, delimiter) {
@@ -2862,8 +3049,89 @@ function updateCatalogControls() {
 function updateDownloadControls() {
   if (!elements.downloadButton) return;
   const hasCatalog = state.catalogRawRows.length > 0 && state.catalogRowInfo.length > 0;
-  const hasSurveys = state.selected.size > 0;
+  const hasSurveys = state.selected.size > 0 || state.userMoc.selected;
   elements.downloadButton.disabled = !(hasCatalog && hasSurveys);
+}
+
+async function handleMocUpload(file) {
+  showToast(`Loading ${file.name}…`, "loading", "user-moc");
+  try {
+    const buffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(buffer);
+
+    if (state.userMoc.mocUrl) URL.revokeObjectURL(state.userMoc.mocUrl);
+
+    state.userMoc.mocUrl = URL.createObjectURL(
+      new Blob([uint8], { type: "application/fits" })
+    );
+    state.userMoc.label = file.name.replace(/\.fit(s)?$/i, "");
+    state.userMoc.selected = true;
+
+    const moc = await ensureMocWasm();
+    state.userMoc.mocInstance = moc.MOC.fromFits(uint8);
+
+    if (elements.clearMocButton) elements.clearMocButton.style.display = "";
+    renderSurveyList();
+    renderLegend();
+    refreshMOCLayers();
+    await renderUserMocOnEqMap();
+    renderEqMapLegend();
+    updateStats();
+    showToast(`Loaded ${state.userMoc.label}`, "success", "user-moc", 1500);
+  } catch (err) {
+    console.error("MOC upload failed:", err);
+    showToast("Failed to load MOC file.", "error", "user-moc", 3000);
+  }
+}
+
+function clearUserMoc() {
+  if (state.userMoc.mocUrl) URL.revokeObjectURL(state.userMoc.mocUrl);
+  state.userMoc = { selected: false, label: null, color: "#f06292", mocUrl: null, mocInstance: null };
+  if (elements.clearMocButton) elements.clearMocButton.style.display = "none";
+  if (state.eqMap.surveyGroup) state.eqMap.surveyGroup.select(".user-moc-raster").remove();
+  refreshMOCLayers();
+  renderSurveyList();
+  renderLegend();
+  renderEqMapLegend();
+  updateStats();
+  const total = state.selected.size;
+  if (state.crossMatchOnly && total < 2) exitCrossMatchMode();
+}
+
+async function renderUserMocOnEqMap() {
+  if (!state.eqMap.initialized) return;
+  if (state.eqMap.surveyGroup) state.eqMap.surveyGroup.select(".user-moc-raster").remove();
+  if (!state.userMoc.mocInstance || !state.userMoc.selected) return;
+
+  const { surveyGroup, xScale, yScale } = state.eqMap;
+  const step = 2; // degrees
+
+  const coos = [];
+  const gridPoints = [];
+  for (let dec = -89; dec <= 89; dec += step) {
+    for (let ra = 1; ra <= 359; ra += step) {
+      coos.push(ra, dec);
+      gridPoints.push({ ra, dec });
+    }
+  }
+
+  const flags = state.userMoc.mocInstance.filterCoos(new Float64Array(coos));
+
+  const rasterGroup = surveyGroup.append("g").attr("class", "user-moc-raster");
+  const cellW = Math.abs(xScale(step) - xScale(0));
+  const cellH = Math.abs(yScale(step) - yScale(0));
+
+  flags.forEach((flag, i) => {
+    if (!flag) return;
+    const { ra, dec } = gridPoints[i];
+    rasterGroup.append("rect")
+      .attr("x", xScale(ra) - cellW / 2)
+      .attr("y", yScale(dec) - cellH / 2)
+      .attr("width", cellW)
+      .attr("height", cellH)
+      .attr("fill", state.userMoc.color)
+      .attr("fill-opacity", 0.4);
+  });
 }
 
 function setActiveView(view) {
