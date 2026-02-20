@@ -119,21 +119,6 @@
               Equirectangular
             </button>
           </div>
-          <div class="equirect-controls" id="equirect-controls" style="display: none;">
-            <label class="control-checkbox">
-              <input type="checkbox" id="show-grid" checked />
-              <span>Grid</span>
-            </label>
-            <label class="control-checkbox">
-              <input type="checkbox" id="show-galactic" checked />
-              <span>Galactic</span>
-            </label>
-            <label class="control-checkbox">
-              <input type="checkbox" id="show-ecliptic" checked />
-              <span>Ecliptic</span>
-            </label>
-            <button class="button secondary" id="download-map-button">Download map (PDF)</button>
-          </div>
           <div class="theme-toggle" role="group" aria-label="UI theme">
             <span class="theme-toggle__label">Dark</span>
             <label class="theme-toggle__switch">
@@ -151,6 +136,21 @@
         <div id="aladin-lite-div" style="width: 100%; height: calc(100% - 40px);"></div>
         <div id="equirectangular-map" style="width: 100%; height: calc(100% - 40px); display: none;">
           <svg id="sky-map"></svg>
+        </div>
+        <div class="equirect-controls" id="equirect-controls" style="display: none;">
+          <label class="control-checkbox">
+            <input type="checkbox" id="show-grid" checked />
+            <span>Grid</span>
+          </label>
+          <label class="control-checkbox">
+            <input type="checkbox" id="show-galactic" checked />
+            <span>Galactic</span>
+          </label>
+          <label class="control-checkbox">
+            <input type="checkbox" id="show-ecliptic" checked />
+            <span>Ecliptic</span>
+          </label>
+          <button class="button secondary" id="download-map-button">Download map (PDF)</button>
         </div>
       </main>
     </div>

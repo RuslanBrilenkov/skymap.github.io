@@ -597,11 +597,20 @@ body:not(.light) .theme-toggle__label:first-child {
   outline-offset: 2px;
 }
 
-/* Equirectangular map controls */
+/* Equirectangular map controls — fixed bottom bar inside map panel */
 .equirect-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
   display: flex;
   gap: 12px;
   align-items: center;
+  padding: 8px 16px;
+  background: var(--surface-6);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
 }
 
 .control-checkbox {
