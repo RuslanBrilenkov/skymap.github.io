@@ -216,6 +216,7 @@ const elements = {
   uploadMocButton: document.getElementById("upload-moc-button"),
   uploadMocInput: document.getElementById("upload-moc-input"),
   clearMocButton: document.getElementById("clear-moc-button"),
+  downloadMapButton: document.getElementById("download-map-button"),
 };
 
 init();
@@ -394,6 +395,9 @@ async function init() {
   }
   if (elements.clearMocButton) {
     elements.clearMocButton.addEventListener("click", clearUserMoc);
+  }
+  if (elements.downloadMapButton) {
+    elements.downloadMapButton.addEventListener("click", handleMapDownload);
   }
 
   // Cross-match toggle
@@ -1972,6 +1976,89 @@ function forceAladinRedraw() {
   });
 
   window.dispatchEvent(new Event("resize"));
+}
+
+async function handleMapDownload() {
+  if (!state.eqMap.initialized || !elements.skyMapSvg) return;
+  if (typeof window.jspdf === "undefined") {
+    showToast("PDF library not loaded.", "error", "map-pdf", 3000);
+    return;
+  }
+
+  const svgEl = elements.skyMapSvg;
+  const vb = svgEl.viewBox.baseVal;
+  if (!vb.width || !vb.height) return;
+
+  // 1. Read current CSS variable values
+  const rootStyle = getComputedStyle(document.body);
+  const isLight = document.body.classList.contains("light");
+  const cssVars = {
+    "--bg-ink":      rootStyle.getPropertyValue("--bg-ink").trim(),
+    "--bg-ink-soft": rootStyle.getPropertyValue("--bg-ink-soft").trim(),
+    "--ink":         rootStyle.getPropertyValue("--ink").trim(),
+    "--ink-muted":   rootStyle.getPropertyValue("--ink-muted").trim(),
+  };
+
+  // 2. Build <style> block with EQ-map CSS class rules (vars resolved)
+  const gridStroke = isLight ? "rgba(27,36,51,0.2)" : "rgba(255,255,255,0.15)";
+  const cssText = `
+    .eq-grid-line { stroke: ${gridStroke}; stroke-width: 0.5; fill: none; }
+    .eq-grid-label { fill: ${cssVars["--ink-muted"]}; font-size: 10px; font-family: sans-serif; }
+    .eq-galactic-plane { stroke: #00bcd4; stroke-width: 1.5; stroke-dasharray: 5,3; fill: none; }
+    .eq-ecliptic-plane { stroke: #ffc107; stroke-width: 1.5; fill: none; }
+    .eq-survey-polygon { stroke-width: 0.5; stroke-opacity: 0.8; }
+    .eq-catalog-point { fill: #ff6f8e; opacity: 0.85; }
+    .eq-pole-label { fill: ${cssVars["--ink-muted"]}; font-size: 10px; font-family: sans-serif; }
+    .eq-axis-label { fill: ${cssVars["--ink"]}; font-size: 11px; font-family: sans-serif; }
+  `;
+
+  // 3. Clone SVG, inject <style>, resolve inline var() references
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("width", vb.width);
+  clone.setAttribute("height", vb.height);
+  const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
+  styleEl.textContent = cssText;
+  clone.insertBefore(styleEl, clone.firstChild);
+  clone.querySelectorAll("[style]").forEach(el => {
+    let s = el.getAttribute("style");
+    Object.entries(cssVars).forEach(([k, v]) => { s = s.replaceAll(`var(${k})`, v); });
+    el.setAttribute("style", s);
+  });
+
+  // 4. Serialize → Blob URL
+  const svgStr = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  // 5. Rasterize at 2× scale on <canvas>
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = url; });
+    URL.revokeObjectURL(url);
+
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = vb.width * scale;
+    canvas.height = vb.height * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+
+    // 6. Build PDF and save
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: vb.width >= vb.height ? "landscape" : "portrait",
+      unit: "px",
+      format: [vb.width, vb.height],
+      hotfixes: ["px_scaling"],
+    });
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, vb.width, vb.height);
+    pdf.save("skymap.pdf");
+  } catch (err) {
+    console.error("Map PDF export failed:", err);
+    showToast("PDF export failed.", "error", "map-pdf", 3000);
+    URL.revokeObjectURL(url);
+  }
 }
 
 async function handleDownload() {
