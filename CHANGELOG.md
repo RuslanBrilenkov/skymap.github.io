@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-03-01 - v2.4.0 Tooltip + Infographic Metadata Update
+
+### Updates
+- Added hover/focus tooltips for:
+  - `Upload catalog` (`Upload CSV/TSV with "ra" and "dec" columns.`)
+  - `Download catalog (augmented)` (`Download catalog with selected-survey overlap flags.`)
+- Reverted equirectangular in-map legend to concise survey names only.
+- Expanded the "How to use the app" infographic (`Available Surveys`) with per-survey filter/band lines and concise wavelength/energy ranges.
+- Added `SURVEY_WAVELENGTH_REFERENCES.md` to track source links and verification notes for survey band/mode metadata.
+
+---
+
 ## 2026-02-08 - Catalog Upload + Augmented Download + UI Updates
 
 ### New Features

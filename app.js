@@ -1,5 +1,5 @@
-// Version 2.3.0 - Add Roman HLWAS full footprint and Deep Tier
-const VERSION = "2.3.0";
+// Version 2.4.0 - Tooltip UX + infographic survey band details
+const VERSION = "2.4.0";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
