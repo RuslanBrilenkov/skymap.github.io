@@ -842,8 +842,8 @@ function renderEqMapLegend() {
   const numCols = Math.ceil(entries.length / 3);
   const numRows = Math.ceil(entries.length / numCols);
   const panelW = 2 * padding + numCols * colW + (numCols - 1) * colGap;
-  const panelH = numRows * rowH + 2 * padding;
   const { innerHeight } = state.eqMap;
+  const panelH = numRows * rowH + 2 * padding;
   const lx = 8;
   const ly = innerHeight - panelH - 8;
 
