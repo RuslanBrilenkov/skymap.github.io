@@ -311,6 +311,10 @@
       color: #b8c3d8;
       margin-top: 3px;
       line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+    .survey-pill .survey-bands.survey-bands--split span {
+      display: block;
     }
 
     /* ── Workflow ── */
@@ -727,7 +731,10 @@
       <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c-roman-deep);border-radius:8px 0 0 8px"></div>
       <div class="survey-name">Roman HLWAS Deep</div>
       <div class="survey-area">~35.6 sq deg · COSMOS + XMM-LSS</div>
-      <div class="survey-bands">F087W/F106W/F129W/F146W/F158W/F184W/F213W + grism (0.76-2.13 um)</div>
+      <div class="survey-bands survey-bands--split">
+        <span>F087W/F106W/F129W/F146W</span>
+        <span>F158W/F184W/F213W + grism (0.76-2.13 um)</span>
+      </div>
     </div>
 
     <div class="survey-pill">
