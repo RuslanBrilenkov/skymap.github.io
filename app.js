@@ -1540,23 +1540,29 @@ async function applyCrossMatchEquirectangular() {
 
     const clipPath = defs.append("clipPath")
       .attr("id", `clip-crossmatch-${survey.id}`)
-      .attr("class", "crossmatch-clip");
+      .attr("class", "crossmatch-clip")
+      .attr("clipPathUnits", "userSpaceOnUse");
 
     const feature = geoData.features[0];
     const polygons = feature.geometry.coordinates;
-    const allPathData = [];
+    let clipPathCount = 0;
 
     polygons.forEach((polygon) => {
       const ring = polygon[0];
       const segments = splitRingAtSeamForClip(ring);
       segments.forEach((segment) => {
         const pathData = buildPathDataForClip(segment, xScale, yScale);
-        if (pathData) allPathData.push(pathData);
+        if (!pathData) return;
+        // Keep each segment as a separate clip child so mixed winding
+        // directions across cells do not cancel valid clip regions.
+        clipPath.append("path").attr("d", pathData);
+        clipPathCount += 1;
       });
     });
 
-    if (allPathData.length > 0) {
-      clipPath.append("path").attr("d", allPathData.join(" "));
+    // Remove empty clips so they cannot zero out nested clipping.
+    if (clipPathCount === 0) {
+      clipPath.remove();
     }
   }
 
