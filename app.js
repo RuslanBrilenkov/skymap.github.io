@@ -15,6 +15,10 @@ const STORAGE_KEY = "sky-coverage-settings-v2";
 const PERSIST_KEY = "sky-coverage-persist-enabled";
 const UI_THEME_KEY = "sky-coverage-ui-theme";
 const ALADIN_VIEW_KEY = "sky-coverage-aladin-view";
+const CATALOG_UPLOAD_TOOLTIP_TEXT = 'Upload CSV/TSV with "ra" and "dec" columns.';
+const DOWNLOAD_CATALOG_TOOLTIP_TEXT = "Download catalog with selected-survey overlap flags.";
+const TOOLTIP_CURSOR_OFFSET_PX = 14;
+const TOOLTIP_VIEWPORT_MARGIN_PX = 8;
 
 const SURVEY_CONFIGS = [
   {
@@ -228,6 +232,7 @@ const elements = {
   uploadInput: document.getElementById("upload-input"),
   clearCatalogButton: document.getElementById("clear-catalog-button"),
   toastStack: document.getElementById("toast-stack"),
+  hoverTooltip: document.getElementById("hover-tooltip"),
   projectionBtns: document.querySelectorAll(".projection-btn"),
   // View toggle elements
   viewBtns: document.querySelectorAll(".view-btn"),
@@ -317,7 +322,28 @@ async function init() {
   updateSurveyToggleLabel();
 
   elements.resetButton.addEventListener("click", resetSelections);
-  elements.downloadButton.addEventListener("click", handleDownload);
+  if (elements.downloadButton && elements.hoverTooltip) {
+    elements.downloadButton.setAttribute("aria-describedby", "hover-tooltip");
+    elements.downloadButton.addEventListener("mouseenter", (event) => {
+      showHoverTooltip(DOWNLOAD_CATALOG_TOOLTIP_TEXT);
+      positionHoverTooltip(event.clientX, event.clientY);
+    });
+    elements.downloadButton.addEventListener("mousemove", (event) => {
+      if (!elements.hoverTooltip.classList.contains("is-visible")) return;
+      positionHoverTooltip(event.clientX, event.clientY);
+    });
+    elements.downloadButton.addEventListener("mouseleave", hideHoverTooltip);
+    elements.downloadButton.addEventListener("focus", () => {
+      showHoverTooltip(DOWNLOAD_CATALOG_TOOLTIP_TEXT);
+      const rect = elements.downloadButton.getBoundingClientRect();
+      positionHoverTooltip(rect.left + rect.width / 2, rect.top, { preferAbove: true });
+    });
+    elements.downloadButton.addEventListener("blur", hideHoverTooltip);
+  }
+  elements.downloadButton.addEventListener("click", () => {
+    hideHoverTooltip();
+    handleDownload();
+  });
   if (elements.surveyToggle && elements.surveyDropdown) {
     elements.surveyToggle.addEventListener("click", () => {
       toggleDropdown(!elements.surveyDropdown.classList.contains("is-open"));
@@ -397,7 +423,26 @@ async function init() {
     });
   }
   if (elements.uploadButton && elements.uploadInput) {
+    if (elements.hoverTooltip) {
+      elements.uploadButton.setAttribute("aria-describedby", "hover-tooltip");
+      elements.uploadButton.addEventListener("mouseenter", (event) => {
+        showHoverTooltip(CATALOG_UPLOAD_TOOLTIP_TEXT);
+        positionHoverTooltip(event.clientX, event.clientY);
+      });
+      elements.uploadButton.addEventListener("mousemove", (event) => {
+        if (!elements.hoverTooltip.classList.contains("is-visible")) return;
+        positionHoverTooltip(event.clientX, event.clientY);
+      });
+      elements.uploadButton.addEventListener("mouseleave", hideHoverTooltip);
+      elements.uploadButton.addEventListener("focus", () => {
+        showHoverTooltip(CATALOG_UPLOAD_TOOLTIP_TEXT);
+        const rect = elements.uploadButton.getBoundingClientRect();
+        positionHoverTooltip(rect.left + rect.width / 2, rect.top, { preferAbove: true });
+      });
+      elements.uploadButton.addEventListener("blur", hideHoverTooltip);
+    }
     elements.uploadButton.addEventListener("click", () => {
+      hideHoverTooltip();
       elements.uploadInput.click();
     });
     elements.uploadInput.addEventListener("change", (event) => {
@@ -1796,6 +1841,44 @@ function resetSelections() {
   logStatus("All selections cleared.");
   persistSettings();
   showToast("Reset complete.", "success", "reset", 1400);
+}
+
+function showHoverTooltip(text) {
+  if (!elements.hoverTooltip) return;
+  elements.hoverTooltip.textContent = text;
+  elements.hoverTooltip.setAttribute("aria-hidden", "false");
+  elements.hoverTooltip.classList.add("is-visible");
+}
+
+function hideHoverTooltip() {
+  if (!elements.hoverTooltip) return;
+  elements.hoverTooltip.setAttribute("aria-hidden", "true");
+  elements.hoverTooltip.classList.remove("is-visible");
+}
+
+function positionHoverTooltip(clientX, clientY, options = {}) {
+  if (!elements.hoverTooltip) return;
+  const tooltip = elements.hoverTooltip;
+  const { preferAbove = false } = options;
+  const offset = TOOLTIP_CURSOR_OFFSET_PX;
+  const margin = TOOLTIP_VIEWPORT_MARGIN_PX;
+  const rect = tooltip.getBoundingClientRect();
+
+  let x = clientX + offset;
+  let y = preferAbove ? clientY - rect.height - offset : clientY + offset;
+
+  const maxX = window.innerWidth - rect.width - margin;
+  const maxY = window.innerHeight - rect.height - margin;
+
+  if (preferAbove && y < margin) {
+    y = clientY + offset;
+  }
+
+  x = Math.max(margin, Math.min(x, maxX));
+  y = Math.max(margin, Math.min(y, maxY));
+
+  tooltip.style.left = `${x}px`;
+  tooltip.style.top = `${y}px`;
 }
 
 function showToast(message, type, id, duration = 2000) {

@@ -533,6 +533,39 @@ body:not(.light) .theme-toggle__label:first-child {
   border-left-color: #ff6b6b;
 }
 
+.hover-tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  max-width: 320px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(7, 10, 20, 0.94);
+  color: #eef3ff;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.25;
+  box-shadow: 0 12px 24px rgba(5, 8, 20, 0.35);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.hover-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+body.light .hover-tooltip {
+  background: rgba(255, 255, 255, 0.98);
+  color: #1b2433;
+  border-color: rgba(27, 36, 51, 0.16);
+  box-shadow: 0 12px 24px rgba(20, 29, 45, 0.16);
+}
+
 .spinner {
   width: 18px;
   height: 18px;
