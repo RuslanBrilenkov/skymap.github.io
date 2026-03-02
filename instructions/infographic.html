@@ -463,6 +463,9 @@
       font-size: 12px;
       color: var(--muted);
     }
+    .footer-copy {
+      margin-top: 8px;
+    }
     .footer a { color: var(--accent); text-decoration: none; }
 
     /* ── Inline code ── */
@@ -504,6 +507,36 @@
     <h1>Sky Coverage Explorer</h1>
     <p>An interactive web app for visualizing astronomical survey footprints,
        comparing overlaps, and cross-matching source catalogs — all in your browser.</p>
+  </div>
+
+  <!-- ── STEP-BY-STEP WORKFLOW ── -->
+  <div class="section-label">Quick Start</div>
+  <div class="workflow" style="margin-bottom:56px">
+    <div class="workflow-step">
+      <div class="step-num">1</div>
+      <h4>Open the App</h4>
+      <p>Open Sky Coverage Explorer and start by choosing one or more surveys from "Select Survey(s)".</p>
+    </div>
+    <div class="workflow-step" style="border-left:none">
+      <div class="step-num">2</div>
+      <h4>Select Surveys</h4>
+      <p>Click "Select Survey(s)" and check one or more surveys from the dropdown</p>
+    </div>
+    <div class="workflow-step" style="border-left:none">
+      <div class="step-num">3</div>
+      <h4>Explore the Map</h4>
+      <p>Rotate &amp; zoom in Aladin, or switch to Equirectangular for a full-sky flat view</p>
+    </div>
+    <div class="workflow-step" style="border-left:none">
+      <div class="step-num">4</div>
+      <h4>Analyse Overlaps</h4>
+      <p>Read intersection area in the Coverage panel, toggle cross-match highlight</p>
+    </div>
+    <div class="workflow-step" style="border-left:none">
+      <div class="step-num">5</div>
+      <h4>Cross-Match &amp; Export</h4>
+      <p>Upload a catalog, check per-source survey membership, download augmented CSV</p>
+    </div>
   </div>
 
   <!-- ── APP LAYOUT DIAGRAM ── -->
@@ -947,36 +980,6 @@
 
   </div>
 
-  <!-- ── STEP-BY-STEP WORKFLOW ── -->
-  <div class="section-label">Quick Start</div>
-  <div class="workflow" style="margin-bottom:56px">
-    <div class="workflow-step">
-      <div class="step-num">1</div>
-      <h4>Open the App</h4>
-      <p>Open Sky Coverage Explorer and start by choosing one or more surveys from "Select Survey(s)".</p>
-    </div>
-    <div class="workflow-step" style="border-left:none">
-      <div class="step-num">2</div>
-      <h4>Select Surveys</h4>
-      <p>Click "Select Survey(s)" and check one or more surveys from the dropdown</p>
-    </div>
-    <div class="workflow-step" style="border-left:none">
-      <div class="step-num">3</div>
-      <h4>Explore the Map</h4>
-      <p>Rotate &amp; zoom in Aladin, or switch to Equirectangular for a full-sky flat view</p>
-    </div>
-    <div class="workflow-step" style="border-left:none">
-      <div class="step-num">4</div>
-      <h4>Analyse Overlaps</h4>
-      <p>Read intersection area in the Coverage panel, toggle cross-match highlight</p>
-    </div>
-    <div class="workflow-step" style="border-left:none">
-      <div class="step-num">5</div>
-      <h4>Cross-Match &amp; Export</h4>
-      <p>Upload a catalog, check per-source survey membership, download augmented CSV</p>
-    </div>
-  </div>
-
   <!-- ── NOTES ── -->
   <div class="section-label">Technical Notes</div>
   <div class="note">All processing is fully <strong>client-side</strong> — no data is sent to any server. MOC intersection calculations use a compiled Rust/WebAssembly module (<code>moc-wasm</code>).</div>
@@ -987,6 +990,7 @@
   <div class="footer">
     Sky Coverage Explorer v2.4.0 &nbsp;·&nbsp;
     Surveys: Euclid, LSST, Roman HLWAS, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1
+    <div class="footer-copy">© 2026 S.L. Ahad &amp; R. Brilenkov</div>
   </div>
 
 </div>
