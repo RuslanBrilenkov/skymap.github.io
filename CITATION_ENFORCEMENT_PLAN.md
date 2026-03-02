@@ -44,7 +44,7 @@ For now, this is planning only. No production code changes for citation gating a
 
 ## Modal UX Specification
 - Title: `Citation acknowledgement`
-- Body text (temporary): `If you use this tool in research outputs, please acknowledge Sky Coverage Explorer and cite the upcoming paper once available.`
+- Body text (temporary): `If you use this tool in research outputs, please acknowledge Survey Footprint Explorer and cite the upcoming paper once available.`
 - Required checkbox:
   - `I acknowledge that research use of this tool should be cited.`
 - Buttons:
@@ -59,7 +59,7 @@ For now, this is planning only. No production code changes for citation gating a
 ## Sidebar Reminder Specification
 Place a short policy line in sidebar footer near copyright:
 - Temporary text:
-  - `Research use should acknowledge Sky Coverage Explorer; citation details will be added with the upcoming paper.`
+  - `Research use should acknowledge Survey Footprint Explorer; citation details will be added with the upcoming paper.`
 
 Placement preference:
 - Under or above the existing copyright lines in `.sidebar-footer`.

@@ -28,3 +28,4 @@
     - Add a Security Policy.
     - Add Issue templates.
     - Add a Pull request template.
+21. Add per-survey coverage-definition metadata panel (filter/band/quality-mask basis + area-definition notes) so users can see why literature and app MOC areas may differ.

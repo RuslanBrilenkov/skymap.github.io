@@ -304,7 +304,7 @@ async function init() {
   elements.coverageLog.textContent = "Select a survey to load its MOC.";
   elements.mocStatus.textContent = `MOC engine: ready (v${VERSION})`;
   logStatus("Application ready.");
-  console.log(`Sky Coverage Explorer v${VERSION} initialized`);
+  console.log(`Survey Footprint Explorer v${VERSION} initialized`);
 
   // Apply restored projection if different from default
   if (state.activeProjection !== "SIN") {

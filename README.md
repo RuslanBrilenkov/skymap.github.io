@@ -1,4 +1,4 @@
-# Sky Coverage Explorer
+# Survey Footprint Explorer
 
 Interactive web app for visualizing survey sky coverage MOCs, comparing overlaps, and testing source catalogs directly in the browser.
 
