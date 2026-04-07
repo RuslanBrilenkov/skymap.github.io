@@ -1,6 +1,6 @@
 # Survey Wavelength Reference Log (EQ Legend)
 
-Last reviewed: 2026-03-01
+Last reviewed: 2026-04-06
 
 Purpose: track the modality/filter labels used in the equirectangular legend and keep source links for later re-checks.
 
@@ -18,6 +18,8 @@ Purpose: track the modality/filter labels used in the equirectangular legend and
 | `lsst_wfd` | `LSST WFD (UV./Opt./NIR; u/g/r/i/z/y)` | UV/Optical/NIR-edge | u, g, r, i, z, y | https://www.lsst.org/about/camera ; https://www6.slac.stanford.edu/lsst-camera | Rubin LSST camera uses six broad ugrizy filters. |
 | `roman_hlwas` | `Roman HLWAS (NIR/Spec.; F106/F129/F158, grism)` | NIR + spectroscopic | F106, F129, F158 + grism | https://roman.gsfc.nasa.gov/science/High_Latitude_Wide_Area_Survey.html ; https://roman.gsfc.nasa.gov/science/WFI_technical.html | HLWAS Wide/Medium tiers are NIR imaging plus spectroscopic components. |
 | `roman_hlwas_deep` | `Roman HLWAS Deep (Opt./NIR/Spec.; F087/F106/F129/F146/F158/F184/F213, grism)` | Optical-edge/NIR + spectroscopic | F087, F106, F129, F146, F158, F184, F213 + grism | https://roman.gsfc.nasa.gov/science/High_Latitude_Wide_Area_Survey.html ; https://roman.gsfc.nasa.gov/science/WFI_technical.html | Includes the shorter F087 band in addition to NIR filters. |
+| `roman_hltds` | `Roman HLTDS (Opt./NIR; F062/F087/F106/F129/F158/F184)` | Optical/NIR imaging | F062, F087, F106, F129, F158, F184 | https://roman-docs.stsci.edu/roman-community-defined-surveys/high-latitude-time-domain-survey ; https://roman-docs.stsci.edu/roman-instruments/the-wide-field-instrument/observing-with-the-wfi/wfi-quick-reference | Derived from the official STScI HLTDS survey definition and represented in the application as the project-maintained imaging pointing model. |
+| `roman_hltds_deep` | `Roman HLTDS Deep (Opt./NIR; F087/F106/F129/F158/F184)` | Optical/NIR imaging | F087, F106, F129, F158, F184 | https://roman-docs.stsci.edu/roman-community-defined-surveys/high-latitude-time-domain-survey ; https://roman-docs.stsci.edu/roman-instruments/the-wide-field-instrument/observing-with-the-wfi/wfi-quick-reference | Deep-imaging subset of the official STScI HLTDS definition as represented by the project-maintained pointing model. |
 
 ## Verification Checklist
 

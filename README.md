@@ -21,6 +21,10 @@ Interactive web app for visualizing survey sky coverage MOCs, comparing overlaps
 - KiDS
 - LSST WFD
 - UNIONS
+- Roman HLWAS
+- Roman HLWAS Deep
+- Roman HLTDS
+- Roman HLTDS Deep
 
 ## Catalog Upload Notes
 

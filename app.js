@@ -86,6 +86,14 @@ const SURVEY_CONFIGS = [
     opacity: 0.45,
   },
   {
+    id: "roman_hlwas_deep",
+    label: "Roman HLWAS Deep",
+    description: "Roman HLWAS Deep Tier — COSMOS and XMM-LSS calibration fields (~19 sq deg)",
+    mocUrl: `${BASE_MOC_URL}roman_hlwas_deep_footprint_moc.fits`,
+    geojsonFile: "roman_hlwas_deep_footprint_moc.geojson",
+    opacity: 0.45,
+  },
+  {
     id: "roman_hlwas",
     label: "Roman HLWAS",
     description: "Nancy Grace Roman HLWAS footprint (Wide + Medium tiers, ~5100 sq deg)",
@@ -94,11 +102,19 @@ const SURVEY_CONFIGS = [
     opacity: 0.45,
   },
   {
-    id: "roman_hlwas_deep",
-    label: "Roman HLWAS Deep",
-    description: "Roman HLWAS Deep Tier — COSMOS and XMM-LSS calibration fields (~19 sq deg)",
-    mocUrl: `${BASE_MOC_URL}roman_hlwas_deep_footprint_moc.fits`,
-    geojsonFile: "roman_hlwas_deep_footprint_moc.geojson",
+    id: "roman_hltds_deep",
+    label: "Roman HLTDS Deep",
+    description: "Roman HLTDS deep imaging footprint",
+    mocUrl: `${BASE_MOC_URL}roman_hltds_deep_footprint_moc.fits`,
+    geojsonFile: "roman_hltds_deep_footprint_moc.geojson",
+    opacity: 0.45,
+  },
+  {
+    id: "roman_hltds",
+    label: "Roman HLTDS",
+    description: "Roman High-Latitude Time-Domain Survey imaging footprint",
+    mocUrl: `${BASE_MOC_URL}roman_hltds_footprint_moc.fits`,
+    geojsonFile: "roman_hltds_footprint_moc.geojson",
     opacity: 0.45,
   },
 ];
@@ -118,6 +134,8 @@ const COLOR_THEMES = {
       lsst_wfd:        "#DC050C",
       roman_hlwas:     "#DDCC77",
       roman_hlwas_deep:"#44AA99",
+      roman_hltds:     "#88CCEE",
+      roman_hltds_deep:"#332288",
     },
   },
   // Paul Tol 23-color Iridescent — sequential blue-to-plum
@@ -134,6 +152,8 @@ const COLOR_THEMES = {
       lsst_wfd:        "#805770",
       roman_hlwas:     "#CABD8B",
       roman_hlwas_deep:"#7EC8D0",
+      roman_hltds:     "#B3CDE3",
+      roman_hltds_deep:"#6B58A6",
     },
   },
   // Paul Tol 23-color Discrete Rainbow — warm/sage emphasis
@@ -150,6 +170,8 @@ const COLOR_THEMES = {
       lsst_wfd:        "#A5170E",
       roman_hlwas:     "#E8D84C",
       roman_hlwas_deep:"#44AA99",
+      roman_hltds:     "#00A6CA",
+      roman_hltds_deep:"#6A3D9A",
     },
   },
 };
