@@ -34,6 +34,8 @@
       --c-lsst:        #DC050C;
       --c-roman:       #DDCC77;
       --c-roman-deep:  #44AA99;
+      --c-roman-hltds: #88CCEE;
+      --c-roman-hltds-deep:#332288;
     }
 
     body {
@@ -552,7 +554,8 @@
           <div class="mock-checkbox"><div class="dot" style="background:var(--c-euclid)"></div>Euclid DR1</div>
           <div class="mock-checkbox"><div class="dot" style="background:var(--c-lsst)"></div>LSST WFD</div>
           <div class="mock-checkbox"><div class="dot" style="background:var(--c-roman)"></div>Roman HLWAS</div>
-          <div class="mock-checkbox" style="color:var(--muted)"><div class="dot" style="background:var(--border)"></div>+ 7 more…</div>
+          <div class="mock-checkbox"><div class="dot" style="background:var(--c-roman-hltds)"></div>Roman HLTDS</div>
+          <div class="mock-checkbox" style="color:var(--muted)"><div class="dot" style="background:var(--border)"></div>+ 8 more…</div>
         </div>
       </div>
 
@@ -622,6 +625,9 @@
           <!-- Roman HLWAS (gold) - diagonal band -->
           <path d="M 50 110 Q 120 95 200 115 Q 195 130 120 125 Q 55 130 50 110 Z"
                 fill="#DDCC77" opacity="0.5"/>
+          <!-- Roman HLTDS (light blue) - compact northern field -->
+          <path d="M 92 82 Q 118 74 146 86 Q 140 98 118 96 Q 98 97 92 82 Z"
+                fill="#88CCEE" opacity="0.55"/>
           <!-- Galactic plane dashed line -->
           <path d="M 15 160 Q 80 90 120 85 Q 160 80 225 145"
                 fill="none" stroke="#f0c040" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
@@ -633,6 +639,7 @@
         <div class="legend-item"><div class="legend-swatch" style="background:var(--c-euclid)"></div>Euclid DR1</div>
         <div class="legend-item"><div class="legend-swatch" style="background:var(--c-lsst)"></div>LSST WFD</div>
         <div class="legend-item"><div class="legend-swatch" style="background:var(--c-roman)"></div>Roman HLWAS</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--c-roman-hltds)"></div>Roman HLTDS</div>
       </div>
     </div>
   </div>
@@ -768,6 +775,20 @@
         <span>F087W/F106W/F129W/F146W</span>
         <span>F158W/F184W/F213W + grism (0.76-2.13 um)</span>
       </div>
+    </div>
+
+    <div class="survey-pill">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c-roman-hltds);border-radius:8px 0 0 8px"></div>
+      <div class="survey-name">Roman HLTDS</div>
+      <div class="survey-area">~28.1 sq deg · optical/NIR</div>
+      <div class="survey-bands">F062/F087/F106/F129/F158/F184</div>
+    </div>
+
+    <div class="survey-pill">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c-roman-hltds-deep);border-radius:8px 0 0 8px"></div>
+      <div class="survey-name">Roman HLTDS Deep</div>
+      <div class="survey-area">~7.7 sq deg · deep imaging</div>
+      <div class="survey-bands">F087/F106/F129/F158/F184</div>
     </div>
 
     <div class="survey-pill">
@@ -940,6 +961,8 @@
         <div class="swatch" style="background:#DC050C" title="LSST WFD"></div>
         <div class="swatch" style="background:#DDCC77" title="Roman HLWAS"></div>
         <div class="swatch" style="background:#44AA99" title="Roman HLWAS Deep"></div>
+        <div class="swatch" style="background:#88CCEE" title="Roman HLTDS"></div>
+        <div class="swatch" style="background:#332288" title="Roman HLTDS Deep"></div>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">Full spectrum spread — maximum perceptual contrast between adjacent surveys.</p>
     </div>
@@ -957,6 +980,8 @@
         <div class="swatch" style="background:#70C8D5"></div>
         <div class="swatch" style="background:#CABD8B"></div>
         <div class="swatch" style="background:#7EC8D0"></div>
+        <div class="swatch" style="background:#B3CDE3"></div>
+        <div class="swatch" style="background:#6B58A6"></div>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">Sequential blue-to-plum — works well for ordered or ranked survey comparisons.</p>
     </div>
@@ -974,6 +999,8 @@
         <div class="swatch" style="background:#F6C141"></div>
         <div class="swatch" style="background:#E8D84C"></div>
         <div class="swatch" style="background:#44AA99"></div>
+        <div class="swatch" style="background:#00A6CA"></div>
+        <div class="swatch" style="background:#6A3D9A"></div>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">High-saturation, high-contrast — optimal for presentations and printed posters.</p>
     </div>
@@ -985,11 +1012,12 @@
   <div class="note">All processing is fully <strong>client-side</strong> — no data is sent to any server. MOC intersection calculations use a compiled Rust/WebAssembly module (<code>moc-wasm</code>).</div>
   <div class="note">Survey footprints are stored as <strong>FITS MOC files</strong> (NUNIQ encoding, <code>pre_v2=True</code>) compatible with Aladin Lite v2. GeoJSON equivalents power the equirectangular overlays.</div>
   <div class="note">The Roman HLWAS footprints are generated from the ROTAC-approved tiling plan (<code>hlwas_tiling_241206.txt.gz</code>). The survey has not launched; these are planning-stage footprints.</div>
+  <div class="note">The Roman HLTDS footprints in this application are derived from the official STScI HLTDS survey definition and implemented here as a project-maintained pointing model based on the published field centers, tier structure, and pointing counts.</div>
 
   <!-- ── FOOTER ── -->
   <div class="footer">
     Survey Footprint Explorer v2.4.0 &nbsp;·&nbsp;
-    Surveys: Euclid, LSST, Roman HLWAS, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1
+    Surveys: Euclid, LSST, Roman HLWAS, Roman HLWAS Deep, Roman HLTDS, Roman HLTDS Deep, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1
     <div class="footer-copy">© 2026 S.L. Ahad &amp; R. Brilenkov</div>
   </div>
 
