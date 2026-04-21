@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-04-21 - v2.5.0 ACT Legacy Survey
+## 2026-04-21 - v2.5.0 ACT Legacy + KiDS footprint update
 
 ### New Survey
 - Added **ACT Legacy** (Atacama Cosmology Telescope legacy survey mask, ~11,235 sq deg)
@@ -9,6 +9,13 @@
   - Re-saved with `pre_v2=True` for NUNIQ encoding (Aladin v2 compatibility)
   - Colors: `#72190E` (Rainbow), `#4F3A65` (Iridescent), `#D1005A` (Vivid)
 - Updated infographic: survey count 12 → 13, ACT Legacy pill + swatches added
+
+### KiDS Footprint Update
+- Replaced KiDS-450 mask (362 sq deg) with combined KiDS-N + KiDS-S science masks (~891 sq deg)
+  - Both masks are WCS CAR-projection binary FITS (`mask_KiDSN.fits`, `mask_KiDSS.fits`)
+  - Converted and unioned into a single MOC at order 11 with `pre_v2=True`
+  - GeoJSON regenerated at order 6 (1,443 polygons, 254 KB)
+  - `app.js` description updated; infographic area corrected to ~891 sq deg
 
 ---
 

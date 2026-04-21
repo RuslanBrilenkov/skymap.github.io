@@ -24,7 +24,7 @@ const SURVEY_CONFIGS = [
   {
     id: "kids",
     label: "KiDS",
-    description: "Kilo-Degree Survey (KiDS-450) footprint",
+    description: "Kilo-Degree Survey science mask — KiDS-N + KiDS-S (~891 sq deg)",
     mocUrl: `${BASE_MOC_URL}kids_footprint_moc.fits`,
     geojsonFile: "kids_footprint_moc.geojson",
     opacity: 0.45,
