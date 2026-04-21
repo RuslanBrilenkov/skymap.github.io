@@ -1,5 +1,7 @@
 # TODO
 
+22. ~~Add ACT Legacy survey (mm-wave, 90/148/220 GHz).~~ **Done.** Converted from WCS CAR FITS mask to MOC order 11; ~11,235 sq deg; infographic updated (v2.5.0).
+
 1. ~~Remove grid from the GeoJSON projection.~~ **Done.** Grid hidden by default; toggle available.
 2. ~~Add a thicker outline to the projected footprint.~~ **Done.** Drop-shadow outline on survey groups.
 3. ~~Add a light mode view (white background).~~ **Done.**

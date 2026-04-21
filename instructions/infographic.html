@@ -36,6 +36,7 @@
       --c-roman-deep:  #44AA99;
       --c-roman-hltds: #88CCEE;
       --c-roman-hltds-deep:#332288;
+      --c-act:         #72190E;
     }
 
     body {
@@ -505,7 +506,7 @@
 
   <!-- ── HERO ── -->
   <div class="hero">
-    <div class="hero-badge">v2.4.0 · Feature Guide</div>
+    <div class="hero-badge">v2.5.0 · Feature Guide</div>
     <h1>Survey Footprint Explorer</h1>
     <p>An interactive web app for visualizing astronomical survey footprints,
        comparing overlaps, and cross-matching source catalogs — all in your browser.</p>
@@ -555,7 +556,7 @@
           <div class="mock-checkbox"><div class="dot" style="background:var(--c-lsst)"></div>LSST WFD</div>
           <div class="mock-checkbox"><div class="dot" style="background:var(--c-roman)"></div>Roman HLWAS</div>
           <div class="mock-checkbox"><div class="dot" style="background:var(--c-roman-hltds)"></div>Roman HLTDS</div>
-          <div class="mock-checkbox" style="color:var(--muted)"><div class="dot" style="background:var(--border)"></div>+ 8 more…</div>
+          <div class="mock-checkbox" style="color:var(--muted)"><div class="dot" style="background:var(--border)"></div>+ 9 more…</div>
         </div>
       </div>
 
@@ -659,8 +660,8 @@
     <div class="feature-card">
       <div class="feature-icon" style="background:#1a3820">☑️</div>
       <h3>Survey Selection</h3>
-      <p>Choose from <strong>10 built-in surveys</strong> via a dropdown with checkboxes. Reorder surveys to control draw layering. "Select all" available for quick comparison.</p>
-      <span class="tag tag-green">10 Surveys</span>
+      <p>Choose from <strong>13 built-in surveys</strong> via a dropdown with checkboxes. Reorder surveys to control draw layering. "Select all" available for quick comparison.</p>
+      <span class="tag tag-green">13 Surveys</span>
       <span class="tag tag-green">Drag to Reorder</span>
     </div>
 
@@ -833,6 +834,13 @@
       <div class="survey-bands">0.2-2.3 keV (~0.5-6 nm)</div>
     </div>
 
+    <div class="survey-pill">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c-act);border-radius:8px 0 0 8px"></div>
+      <div class="survey-name">ACT Legacy</div>
+      <div class="survey-area">~11,235 sq deg · mm-wave</div>
+      <div class="survey-bands">90/148/220 GHz (1.4–3.3 mm)</div>
+    </div>
+
   </div>
 
   <!-- ── MAP VIEWS ── -->
@@ -963,6 +971,7 @@
         <div class="swatch" style="background:#44AA99" title="Roman HLWAS Deep"></div>
         <div class="swatch" style="background:#88CCEE" title="Roman HLTDS"></div>
         <div class="swatch" style="background:#332288" title="Roman HLTDS Deep"></div>
+        <div class="swatch" style="background:#72190E" title="ACT Legacy"></div>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">Full spectrum spread — maximum perceptual contrast between adjacent surveys.</p>
     </div>
@@ -982,6 +991,7 @@
         <div class="swatch" style="background:#7EC8D0"></div>
         <div class="swatch" style="background:#B3CDE3"></div>
         <div class="swatch" style="background:#6B58A6"></div>
+        <div class="swatch" style="background:#4F3A65"></div>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">Sequential blue-to-plum — works well for ordered or ranked survey comparisons.</p>
     </div>
@@ -1001,6 +1011,7 @@
         <div class="swatch" style="background:#44AA99"></div>
         <div class="swatch" style="background:#00A6CA"></div>
         <div class="swatch" style="background:#6A3D9A"></div>
+        <div class="swatch" style="background:#D1005A"></div>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">High-saturation, high-contrast — optimal for presentations and printed posters.</p>
     </div>
@@ -1016,8 +1027,8 @@
 
   <!-- ── FOOTER ── -->
   <div class="footer">
-    Survey Footprint Explorer v2.4.0 &nbsp;·&nbsp;
-    Surveys: Euclid, LSST, Roman HLWAS, Roman HLWAS Deep, Roman HLTDS, Roman HLTDS Deep, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1
+    Survey Footprint Explorer v2.5.0 &nbsp;·&nbsp;
+    Surveys: Euclid, LSST, Roman HLWAS, Roman HLWAS Deep, Roman HLTDS, Roman HLTDS Deep, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1, ACT Legacy
     <div class="footer-copy">© 2026 S.L. Ahad &amp; R. Brilenkov</div>
   </div>
 

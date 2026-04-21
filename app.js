@@ -1,5 +1,5 @@
-// Version 2.4.0 - Tooltip UX + infographic survey band details
-const VERSION = "2.4.0";
+// Version 2.5.0 - ACT Legacy survey added
+const VERSION = "2.5.0";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -117,6 +117,14 @@ const SURVEY_CONFIGS = [
     geojsonFile: "roman_hltds_footprint_moc.geojson",
     opacity: 0.45,
   },
+  {
+    id: "act",
+    label: "ACT Legacy",
+    description: "Atacama Cosmology Telescope legacy survey mask",
+    mocUrl: `${BASE_MOC_URL}act_footprint_moc.fits`,
+    geojsonFile: "act_footprint_moc.geojson",
+    opacity: 0.45,
+  },
 ];
 
 const COLOR_THEMES = {
@@ -136,6 +144,7 @@ const COLOR_THEMES = {
       roman_hlwas_deep:"#44AA99",
       roman_hltds:     "#88CCEE",
       roman_hltds_deep:"#332288",
+      act:             "#72190E",
     },
   },
   // Paul Tol 23-color Iridescent — sequential blue-to-plum
@@ -154,6 +163,7 @@ const COLOR_THEMES = {
       roman_hlwas_deep:"#7EC8D0",
       roman_hltds:     "#B3CDE3",
       roman_hltds_deep:"#6B58A6",
+      act:             "#4F3A65",
     },
   },
   // Paul Tol 23-color Discrete Rainbow — warm/sage emphasis
@@ -172,6 +182,7 @@ const COLOR_THEMES = {
       roman_hlwas_deep:"#44AA99",
       roman_hltds:     "#00A6CA",
       roman_hltds_deep:"#6A3D9A",
+      act:             "#D1005A",
     },
   },
 };
