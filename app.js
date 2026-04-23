@@ -225,6 +225,7 @@ const state = {
   areaCache: new Map(),
   crossMatchOnly: false,
   intersectionBlobUrl: null,
+  intersectionMocInstance: null,
   catalogPoints: [],
   catalogLayer: null,
   catalogPending: false,
@@ -1237,13 +1238,18 @@ function refreshMOCLayers() {
 
     console.log(`Refreshing MOCs. Selected surveys: ${Array.from(state.selected).join(', ')}`);
 
+    // Cross-match is active when 2+ sources are selected, counting the user MOC.
+    // Used to grey out every layer that isn't the intersection overlay.
+    const totalForIntersection = state.selected.size +
+      (state.userMoc.selected && state.userMoc.mocInstance ? 1 : 0);
+    const crossMatchActive = state.crossMatchOnly && totalForIntersection >= 2;
+
     // Re-add MOCs so the top list item is drawn last (on top)
     [...SURVEYS].reverse().forEach((survey) => {
       if (!state.selected.has(survey.id)) {
         return;
       }
       showToast(`Loading ${survey.label}…`, "loading", survey.id);
-      const crossMatchActive = state.crossMatchOnly && state.selected.size >= 2;
       const layerColor = crossMatchActive ? "#888888" : survey.color;
       const layerOpacity = crossMatchActive ? 0.3 : survey.opacity;
       const mocLayer = A.MOCFromURL(survey.mocUrl, {
@@ -1263,11 +1269,9 @@ function refreshMOCLayers() {
 
     // Add user MOC layer if selected
     if (state.userMoc.mocUrl && state.userMoc.selected) {
-      const totalSelected = state.selected.size + 1;
-      const crossMatchActiveUser = state.crossMatchOnly && totalSelected >= 2;
       const userLayer = A.MOCFromURL(state.userMoc.mocUrl, {
-        color: crossMatchActiveUser ? "#888888" : state.userMoc.color,
-        opacity: crossMatchActiveUser ? 0.3 : 0.45,
+        color: crossMatchActive ? "#888888" : state.userMoc.color,
+        opacity: crossMatchActive ? 0.3 : 0.45,
         lineWidth: 2,
         adaptativeDisplay: false,
       });
@@ -1276,7 +1280,6 @@ function refreshMOCLayers() {
     }
 
     // Add intersection overlay if cross-match is active
-    const crossMatchActive = state.crossMatchOnly && state.selected.size >= 2;
     if (crossMatchActive && state.intersectionBlobUrl) {
       const intersectionLayer = A.MOCFromURL(state.intersectionBlobUrl, {
         color: "#ffffff",
@@ -1341,6 +1344,15 @@ function updateStats() {
   elements.intersectionArea.textContent = "computing...";
   updateIntersectionArea();
   updateDownloadControls();
+}
+
+// moc-wasm MOC objects own WebAssembly heap memory. Dropping the JS reference
+// does NOT release that heap — call .free() first. Guard for hot-reload cases
+// where the binding shape may change.
+function safeFreeMoc(moc) {
+  if (moc && typeof moc.free === "function") {
+    try { moc.free(); } catch (_) { /* already freed or invalidated */ }
+  }
 }
 
 async function ensureMocWasm() {
@@ -1411,11 +1423,21 @@ async function updateIntersectionArea() {
       if (state.userMoc.selected && state.userMoc.mocInstance) {
         mocs.push(state.userMoc.mocInstance);
       }
+      // mocs[0] is owned by the cache / user upload — never free it.
+      // Intermediates produced by .and() are ours and must be freed.
       let intersection = mocs[0];
+      let intersectionIsOwned = false;
       for (let index = 1; index < mocs.length; index += 1) {
-        intersection = intersection.and(mocs[index]);
+        const next = intersection.and(mocs[index]);
+        if (intersectionIsOwned) safeFreeMoc(intersection);
+        intersection = next;
+        intersectionIsOwned = true;
       }
-      return intersection.coveragePercentage();
+      try {
+        return intersection.coveragePercentage();
+      } finally {
+        if (intersectionIsOwned) safeFreeMoc(intersection);
+      }
     })();
 
     const coveragePercent = await Promise.race([computePromise, timeoutPromise]);
@@ -1526,13 +1548,22 @@ async function enterCrossMatchMode() {
       mocs.push(state.userMoc.mocInstance);
     }
 
+    // mocs[0] is cached / user-owned — don't free it. Only intermediates
+    // from .and() are ours to free.
     let intersection = mocs[0];
+    let intersectionIsOwned = false;
     for (let i = 1; i < mocs.length; i++) {
-      intersection = intersection.and(mocs[i]);
+      const next = intersection.and(mocs[i]);
+      if (intersectionIsOwned) safeFreeMoc(intersection);
+      intersection = next;
+      intersectionIsOwned = true;
     }
 
     // 2. Check if intersection is non-empty and create Blob URL
     const coverage = intersection.coveragePercentage();
+    // Free any prior intersection before overwriting.
+    safeFreeMoc(state.intersectionMocInstance);
+    state.intersectionMocInstance = intersectionIsOwned ? intersection : null;
     if (state.intersectionBlobUrl) {
       URL.revokeObjectURL(state.intersectionBlobUrl);
       state.intersectionBlobUrl = null;
@@ -1644,49 +1675,130 @@ async function applyCrossMatchEquirectangular() {
     }
   }
 
-  // 3. Draw intersection highlight with nested clip paths
+  // 3. Draw intersection highlight
   const isLight = document.body.classList.contains("light");
   const highlightColor = isLight ? "#1b2433" : "#ffffff";
   const highlightFillOpacity = isLight ? 0.2 : 0.4;
 
-  let group = surveyGroup.append("g").attr("class", "crossmatch-highlight");
-  for (const survey of selectedSurveys) {
-    const clipId = `clip-crossmatch-${survey.id}`;
-    if (defs.select(`#${clipId}`).empty()) continue;
-    group = group.append("g")
-      .attr("clip-path", `url(#${clipId})`);
+  const userMocInvolved = state.userMoc.selected && state.userMoc.mocInstance;
+
+  // Pre-compute raster data once when user MOC is involved; reused for both
+  // the highlight rects and the outline mask.
+  let rasterFlags = null;
+  let rasterPoints = null;
+  let rasterCellW = 0;
+  let rasterCellH = 0;
+  if (userMocInvolved && state.intersectionMocInstance) {
+    const step = 2;
+    const coos = [];
+    rasterPoints = [];
+    for (let dec = -89; dec <= 89; dec += step) {
+      for (let ra = 1; ra <= 359; ra += step) {
+        coos.push(ra, dec);
+        rasterPoints.push({ ra, dec });
+      }
+    }
+    rasterFlags = state.intersectionMocInstance.filterCoos(new Float64Array(coos));
+    rasterCellW = Math.abs(xScale(step) - xScale(0));
+    rasterCellH = Math.abs(yScale(step) - yScale(0));
   }
-  group.append("rect")
-    .attr("width", innerWidth)
-    .attr("height", innerHeight)
-    .attr("fill", highlightColor)
-    .attr("fill-opacity", highlightFillOpacity);
 
-  // 4. Draw intersection outline by clipping each survey boundary with all others
+  if (rasterFlags) {
+    // Raster highlight: fill cells that are inside the intersection MOC.
+    const highlightGroup = surveyGroup.append("g").attr("class", "crossmatch-highlight");
+    rasterFlags.forEach((flag, i) => {
+      if (!flag) return;
+      const { ra, dec } = rasterPoints[i];
+      highlightGroup.append("rect")
+        .attr("x", xScale(ra) - rasterCellW / 2)
+        .attr("y", yScale(dec) - rasterCellH / 2)
+        .attr("width", rasterCellW)
+        .attr("height", rasterCellH)
+        .attr("fill", highlightColor)
+        .attr("fill-opacity", highlightFillOpacity);
+    });
+  } else {
+    // Clip-path highlight for built-in surveys only.
+    let group = surveyGroup.append("g").attr("class", "crossmatch-highlight");
+    for (const survey of selectedSurveys) {
+      const clipId = `clip-crossmatch-${survey.id}`;
+      if (defs.select(`#${clipId}`).empty()) continue;
+      group = group.append("g")
+        .attr("clip-path", `url(#${clipId})`);
+    }
+    group.append("rect")
+      .attr("width", innerWidth)
+      .attr("height", innerHeight)
+      .attr("fill", highlightColor)
+      .attr("fill-opacity", highlightFillOpacity);
+  }
+
+  // 4. Draw intersection outline.
   const outlineGroup = surveyGroup.append("g").attr("class", "crossmatch-outline");
-  selectedSurveys.forEach((survey) => {
-    const boundaryPaths = surveyGroup.selectAll(`.survey-${survey.id} .eq-survey-boundary`);
-    if (boundaryPaths.empty()) return;
 
-    let clipGroup = outlineGroup.append("g");
-    selectedSurveys.forEach((otherSurvey) => {
-      if (otherSurvey.id === survey.id) return;
-      const clipId = `clip-crossmatch-${otherSurvey.id}`;
-      if (defs.select(`#${clipId}`).empty()) return;
-      clipGroup = clipGroup.append("g").attr("clip-path", `url(#${clipId})`);
+  if (rasterFlags) {
+    // Trace the perimeter of the raster highlight: for each highlighted cell,
+    // draw a stroke on any edge whose neighbour is not highlighted.
+    const step = 2;
+    const highlightedSet = new Set();
+    rasterFlags.forEach((flag, i) => {
+      if (flag) highlightedSet.add(`${rasterPoints[i].ra},${rasterPoints[i].dec}`);
     });
 
-    boundaryPaths.each(function () {
-      const d = d3.select(this).attr("d");
-      if (!d) return;
-      clipGroup.append("path")
-        .attr("d", d)
-        .attr("fill", "none")
-        .attr("stroke", highlightColor)
-        .attr("stroke-width", 1.6)
-        .attr("stroke-opacity", 0.75);
+    rasterFlags.forEach((flag, i) => {
+      if (!flag) return;
+      const { ra, dec } = rasterPoints[i];
+      const x = xScale(ra);
+      const y = yScale(dec);
+      const x0 = x - rasterCellW / 2;
+      const x1 = x + rasterCellW / 2;
+      const y0 = y - rasterCellH / 2;
+      const y1 = y + rasterCellH / 2;
+
+      // Left edge
+      if (!highlightedSet.has(`${ra - step},${dec}`))
+        outlineGroup.append("line").attr("x1", x0).attr("y1", y0).attr("x2", x0).attr("y2", y1);
+      // Right edge
+      if (!highlightedSet.has(`${ra + step},${dec}`))
+        outlineGroup.append("line").attr("x1", x1).attr("y1", y0).attr("x2", x1).attr("y2", y1);
+      // Top edge (higher dec = smaller SVG y)
+      if (!highlightedSet.has(`${ra},${dec + step}`))
+        outlineGroup.append("line").attr("x1", x0).attr("y1", y0).attr("x2", x1).attr("y2", y0);
+      // Bottom edge
+      if (!highlightedSet.has(`${ra},${dec - step}`))
+        outlineGroup.append("line").attr("x1", x0).attr("y1", y1).attr("x2", x1).attr("y2", y1);
     });
-  });
+
+    outlineGroup.selectAll("line")
+      .attr("stroke", highlightColor)
+      .attr("stroke-width", 1.6)
+      .attr("stroke-opacity", 0.75);
+  } else {
+    // Built-in surveys only: clip each survey's boundary by all other surveys.
+    selectedSurveys.forEach((survey) => {
+      const boundaryPaths = surveyGroup.selectAll(`.survey-${survey.id} .eq-survey-boundary`);
+      if (boundaryPaths.empty()) return;
+
+      let clipGroup = outlineGroup.append("g");
+      selectedSurveys.forEach((otherSurvey) => {
+        if (otherSurvey.id === survey.id) return;
+        const clipId = `clip-crossmatch-${otherSurvey.id}`;
+        if (defs.select(`#${clipId}`).empty()) return;
+        clipGroup = clipGroup.append("g").attr("clip-path", `url(#${clipId})`);
+      });
+
+      boundaryPaths.each(function () {
+        const d = d3.select(this).attr("d");
+        if (!d) return;
+        clipGroup.append("path")
+          .attr("d", d)
+          .attr("fill", "none")
+          .attr("stroke", highlightColor)
+          .attr("stroke-width", 1.6)
+          .attr("stroke-opacity", 0.75);
+      });
+    });
+  }
 }
 
 // Helper: split ring at RA=0/360 seam (extracted from drawSurveyOnEqMap pattern)
@@ -1791,6 +1903,8 @@ function cleanupCrossMatchState() {
     URL.revokeObjectURL(state.intersectionBlobUrl);
     state.intersectionBlobUrl = null;
   }
+  safeFreeMoc(state.intersectionMocInstance);
+  state.intersectionMocInstance = null;
 }
 
 function restoreEqMapNormalView() {
@@ -3008,12 +3122,18 @@ async function refreshEqMapSurveys(options = {}) {
     }
   }
 
-  // Re-apply cross-match visuals after all surveys are drawn
-  if (state.crossMatchOnly && state.selected.size >= 2) {
+  // Render order contract: built-in surveys → user MOC raster → cross-match
+  // overlay. The overlay must be appended last so its highlight + outline sit
+  // on top, and so its greyout step catches the user MOC raster (which would
+  // otherwise cover the intersection highlight in pink).
+  await renderUserMocOnEqMap();
+
+  const totalForCrossMatch = state.selected.size +
+    (state.userMoc.selected && state.userMoc.mocInstance ? 1 : 0);
+  if (state.crossMatchOnly && totalForCrossMatch >= 2) {
     await applyCrossMatchEquirectangular();
   }
 
-  await renderUserMocOnEqMap();
   renderEqMapLegend();
 }
 
@@ -3311,21 +3431,39 @@ async function handleMocUpload(file) {
     const uint8 = new Uint8Array(buffer);
 
     if (state.userMoc.mocUrl) URL.revokeObjectURL(state.userMoc.mocUrl);
+    safeFreeMoc(state.userMoc.mocInstance);
 
-    state.userMoc.mocUrl = URL.createObjectURL(
-      new Blob([uint8], { type: "application/fits" })
-    );
     state.userMoc.label = file.name.replace(/\.fit(s)?$/i, "");
     state.userMoc.selected = true;
 
     const moc = await ensureMocWasm();
     state.userMoc.mocInstance = moc.MOC.fromFits(uint8);
 
+    // Aladin Lite v2 only renders MOCs that use NUNIQ encoding (pre-v2 layout).
+    // Roundtrip the parsed MOC through toFits(true) so the blob handed to
+    // Aladin matches that contract regardless of how the original was saved —
+    // otherwise MOCs saved with the modern mocpy default land in the wrong
+    // sky region. The equirectangular view bypasses this since it queries the
+    // parsed mocInstance directly via filterCoos.
+    let aladinFitsBytes = uint8;
+    try {
+      aladinFitsBytes = state.userMoc.mocInstance.toFits(true);
+    } catch (reEncodeError) {
+      console.warn("Could not re-encode user MOC for Aladin; using raw bytes:", reEncodeError);
+    }
+    state.userMoc.mocUrl = URL.createObjectURL(
+      new Blob([aladinFitsBytes], { type: "application/fits" })
+    );
+
     if (elements.clearMocButton) elements.clearMocButton.style.display = "";
     renderSurveyList();
     renderLegend();
-    refreshMOCLayers();
-    await renderUserMocOnEqMap();
+    if (state.crossMatchOnly && state.selected.size + 1 >= 2) {
+      await enterCrossMatchMode();
+    } else {
+      refreshMOCLayers();
+      await renderUserMocOnEqMap();
+    }
     renderEqMapLegend();
     updateStats();
     showToast(`Loaded ${state.userMoc.label}`, "success", "user-moc", 1500);
@@ -3337,6 +3475,7 @@ async function handleMocUpload(file) {
 
 function clearUserMoc() {
   if (state.userMoc.mocUrl) URL.revokeObjectURL(state.userMoc.mocUrl);
+  safeFreeMoc(state.userMoc.mocInstance);
   state.userMoc = { selected: false, label: null, color: "#f06292", mocUrl: null, mocInstance: null };
   if (elements.clearMocButton) elements.clearMocButton.style.display = "none";
   if (state.eqMap.surveyGroup) state.eqMap.surveyGroup.select(".user-moc-raster").remove();
@@ -3399,7 +3538,9 @@ function setActiveView(view) {
     elements.mapTitle.textContent = "Aladin Lite V2";
     // Refresh MOC layers to sync with current selection
     if (state.selected.size > 0 || state.userMoc.selected) {
-      if (state.crossMatchOnly && state.selected.size >= 2 && state.intersectionBlobUrl) {
+      const totalForCrossMatch = state.selected.size +
+        (state.userMoc.selected && state.userMoc.mocInstance ? 1 : 0);
+      if (state.crossMatchOnly && totalForCrossMatch >= 2 && state.intersectionBlobUrl) {
         // In cross-match mode, use applyCrossMatchAladin which calls refreshMOCLayers internally
         applyCrossMatchAladin();
       } else {
