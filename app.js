@@ -1,5 +1,5 @@
 // Version 2.5.0 - ACT Legacy survey added
-const VERSION = "2.5.0";
+const VERSION = "2.6.0";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -125,6 +125,14 @@ const SURVEY_CONFIGS = [
     geojsonFile: "act_footprint_moc.geojson",
     opacity: 0.45,
   },
+  {
+    id: "alfalfa",
+    label: "ALFALFA",
+    description: "Arecibo Legacy Fast ALFA Survey — HI 21cm footprint (~7,114 sq deg)",
+    mocUrl: `${BASE_MOC_URL}alfalfa_moc.fits`,
+    geojsonFile: "alfalfa_moc.geojson",
+    opacity: 0.45,
+  },
 ];
 
 const COLOR_THEMES = {
@@ -145,6 +153,7 @@ const COLOR_THEMES = {
       roman_hltds:     "#88CCEE",
       roman_hltds_deep:"#332288",
       act:             "#72190E",
+      alfalfa:         "#AA4499",
     },
   },
   // Paul Tol 23-color Iridescent — sequential blue-to-plum
@@ -164,6 +173,7 @@ const COLOR_THEMES = {
       roman_hltds:     "#B3CDE3",
       roman_hltds_deep:"#6B58A6",
       act:             "#4F3A65",
+      alfalfa:         "#9C6B7C",
     },
   },
   // Paul Tol 23-color Discrete Rainbow — warm/sage emphasis
@@ -183,6 +193,7 @@ const COLOR_THEMES = {
       roman_hltds:     "#00A6CA",
       roman_hltds_deep:"#6A3D9A",
       act:             "#D1005A",
+      alfalfa:         "#009988",
     },
   },
 };

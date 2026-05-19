@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-05-18 - v2.6.0 ALFALFA HI 21 cm footprint
+
+### New Survey
+- Added **ALFALFA** (Arecibo Legacy Fast ALFA Survey, ~7,114 sq deg)
+  - First radio / HI-line survey in the explorer (all 13 prior surveys are optical/NIR/X-ray/mm-wave)
+  - Source MOC: `alfalfa_moc.fits` (CDS MOC Rust lib export, MOCVERS 2.0, RANGE encoding, max order 10)
+  - Re-saved with `pre_v2=True` via mocpy 0.19.1 to convert to NUNIQ encoding (Aladin Lite v2 compatibility); see `BUGFIX_MOC_FORMAT.md`
+  - GeoJSON generated at order 6 (8,981 polygons, ~1.56 MB) via `sky_map_visualizer/dev/moc_to_geojson.py`
+  - `app.js`: new `SURVEY_CONFIGS` entry (`id: "alfalfa"`, `label: "ALFALFA"`); EQ wavelength legend label `ALFALFA (HI)` documented in `SURVEY_WAVELENGTH_REFERENCES.md`
+  - Colors: `#AA4499` (Rainbow / Paul Tol Muted rose-magenta), `#9C6B7C` (Iridescent warm plum), `#009988` (Vivid teal)
+- Updated infographic: survey count 13 → 14, ALFALFA pill + swatch added (`--c-alfalfa` CSS variable)
+
+### Citation
+- Added a reference pointer to the tool and to the infographic, styled as a button:
+  - Tool (`index.html`): "Reference: arxiv:2605.11099" button placed in the sidebar `.brand` block directly under the "How to use this" button (was previously in the sidebar-footer).
+  - Infographic (`instructions/infographic.html`): "Reference: arxiv:2605.11099 ↗" button placed in the hero block directly under the intro paragraph, styled via a new `.ref-button` CSS class (was previously in the page footer).
+  - Both buttons open https://arxiv.org/abs/2605.11099 in a new tab.
+
+### Version + cleanup
+- App `VERSION` bumped 2.5.0 → 2.6.0; MOC-engine status pill now reads "MOC engine: ready (v2.6.0)".
+- Infographic hero badge bumped 2.5.0 → 2.6.0; infographic footer survey-list extended with "ALFALFA".
+
+---
+
 ## 2026-04-21 - v2.5.0 ACT Legacy + KiDS footprint update
 
 ### New Survey
