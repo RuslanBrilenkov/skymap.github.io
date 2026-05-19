@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-05-19 - v2.7.0 SDSS-III BOSS DR12 LOWZ + CMASS footprints
+
+### New Surveys
+- Added **BOSS LOWZ** (SDSS-III BOSS DR12 LOWZ galaxy sample imaging mask, ~9,281 sq deg)
+- Added **BOSS CMASS** (SDSS-III BOSS DR12 CMASS galaxy sample imaging mask, ~10,259 sq deg)
+  - Inputs are healsparse N+S masks (`mask_DR12v5_{LOWZ,CMASS}_{North,South}_hsp_4096_v2.fits`, NSIDE=4096 NESTED, sentinel `-1.6375e+30`) — first surveys in the explorer sourced from the healsparse format.
+  - Source MOCs built via new processors `sky_map_visualizer/dev/sky_coverage_app/surveys/boss_{lowz,cmass}.py`: footprint = union of `valid_pixels` from N and S patches, written at max order 12 with `pre_v2=True` (NUNIQ encoding for Aladin Lite v2 compatibility).
+  - GeoJSON generated at order 6 via `sky_map_visualizer/dev/moc_to_geojson.py` (BOSS LOWZ: 11,650 polygons, ~2.0 MB; BOSS CMASS: 12,731 polygons, ~2.2 MB).
+  - `app.js`: two new `SURVEY_CONFIGS` entries (`id: "boss_lowz"`, `id: "boss_cmass"`); EQ wavelength legend labels `BOSS LOWZ (Opt./Spec.; ugriz)` and `BOSS CMASS (Opt./Spec.; ugriz)` documented in `SURVEY_WAVELENGTH_REFERENCES.md`.
+  - Colors (paired wine + rose across all three themes): default `#882255` / `#CC6677`; iridescent `#523365` / `#7E5485`; vivid `#7D3C98` / `#BB6699`.
+- New dev-side dependency: `healsparse==1.12.2` (pinned in `sky_map_visualizer/requirements.txt`).
+- Updated infographic: survey count 14 → 16, BOSS LOWZ + BOSS CMASS pills + swatches added (`--c-boss-lowz`, `--c-boss-cmass` CSS variables).
+
+### Version
+- App `VERSION` bumped 2.6.0 → 2.7.0; MOC-engine status pill now reads "MOC engine: ready (v2.7.0)".
+- Infographic hero badge bumped 2.6.0 → 2.7.0; infographic footer survey-list extended with "BOSS LOWZ, BOSS CMASS".
+
+---
+
 ## 2026-05-18 - v2.6.0 ALFALFA HI 21 cm footprint
 
 ### New Survey

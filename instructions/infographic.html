@@ -38,6 +38,8 @@
       --c-roman-hltds-deep:#332288;
       --c-act:         #72190E;
       --c-alfalfa:     #AA4499;
+      --c-boss-lowz:   #882255;
+      --c-boss-cmass:  #CC6677;
     }
 
     body {
@@ -526,7 +528,7 @@
 
   <!-- ── HERO ── -->
   <div class="hero">
-    <div class="hero-badge">v2.6.0 · Feature Guide</div>
+    <div class="hero-badge">v2.7.0 · Feature Guide</div>
     <h1>Survey Footprint Explorer</h1>
     <p>An interactive web app for visualizing astronomical survey footprints,
        comparing overlaps, and cross-matching source catalogs — all in your browser.</p>
@@ -685,7 +687,7 @@
       <div class="feature-icon" style="background:#1a3820">☑️</div>
       <h3>Survey Selection</h3>
       <p>Choose from <strong>13 built-in surveys</strong> via a dropdown with checkboxes. Reorder surveys to control draw layering. "Select all" available for quick comparison.</p>
-      <span class="tag tag-green">14 Surveys</span>
+      <span class="tag tag-green">16 Surveys</span>
       <span class="tag tag-green">Drag to Reorder</span>
     </div>
 
@@ -872,6 +874,20 @@
       <div class="survey-bands">HI 21 cm (~1.4 GHz, L-band)</div>
     </div>
 
+    <div class="survey-pill">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c-boss-lowz);border-radius:8px 0 0 8px"></div>
+      <div class="survey-name">BOSS LOWZ</div>
+      <div class="survey-area">~9,281 sq deg · optical/spec.</div>
+      <div class="survey-bands">SDSS ugriz imaging + BOSS spectra</div>
+    </div>
+
+    <div class="survey-pill">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c-boss-cmass);border-radius:8px 0 0 8px"></div>
+      <div class="survey-name">BOSS CMASS</div>
+      <div class="survey-area">~10,259 sq deg · optical/spec.</div>
+      <div class="survey-bands">SDSS ugriz imaging + BOSS spectra</div>
+    </div>
+
   </div>
 
   <!-- ── MAP VIEWS ── -->
@@ -1003,6 +1019,9 @@
         <div class="swatch" style="background:#88CCEE" title="Roman HLTDS"></div>
         <div class="swatch" style="background:#332288" title="Roman HLTDS Deep"></div>
         <div class="swatch" style="background:#72190E" title="ACT Legacy"></div>
+        <div class="swatch" style="background:#AA4499" title="ALFALFA"></div>
+        <div class="swatch" style="background:#882255" title="BOSS LOWZ"></div>
+        <div class="swatch" style="background:#CC6677" title="BOSS CMASS"></div>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">Full spectrum spread — maximum perceptual contrast between adjacent surveys.</p>
     </div>
@@ -1058,8 +1077,8 @@
 
   <!-- ── FOOTER ── -->
   <div class="footer">
-    Survey Footprint Explorer v2.6.0 &nbsp;·&nbsp;
-    Surveys: Euclid, LSST, Roman HLWAS, Roman HLWAS Deep, Roman HLTDS, Roman HLTDS Deep, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1, ACT Legacy, ALFALFA
+    Survey Footprint Explorer v2.7.0 &nbsp;·&nbsp;
+    Surveys: Euclid, LSST, Roman HLWAS, Roman HLWAS Deep, Roman HLTDS, Roman HLTDS Deep, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1, ACT Legacy, ALFALFA, BOSS LOWZ, BOSS CMASS
     <div class="footer-copy">© 2026 S.L. Ahad &amp; R. Brilenkov</div>
   </div>
 

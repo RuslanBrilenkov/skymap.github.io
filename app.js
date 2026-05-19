@@ -1,5 +1,5 @@
-// Version 2.5.0 - ACT Legacy survey added
-const VERSION = "2.6.0";
+// Version 2.7.0 - BOSS DR12 LOWZ + CMASS surveys added
+const VERSION = "2.7.0";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -133,6 +133,22 @@ const SURVEY_CONFIGS = [
     geojsonFile: "alfalfa_moc.geojson",
     opacity: 0.45,
   },
+  {
+    id: "boss_lowz",
+    label: "BOSS LOWZ",
+    description: "SDSS-III BOSS DR12 LOWZ galaxy sample — N+S imaging mask (~9,281 sq deg)",
+    mocUrl: `${BASE_MOC_URL}boss_lowz_footprint_moc.fits`,
+    geojsonFile: "boss_lowz_footprint_moc.geojson",
+    opacity: 0.45,
+  },
+  {
+    id: "boss_cmass",
+    label: "BOSS CMASS",
+    description: "SDSS-III BOSS DR12 CMASS galaxy sample — N+S imaging mask (~10,259 sq deg)",
+    mocUrl: `${BASE_MOC_URL}boss_cmass_footprint_moc.fits`,
+    geojsonFile: "boss_cmass_footprint_moc.geojson",
+    opacity: 0.45,
+  },
 ];
 
 const COLOR_THEMES = {
@@ -154,6 +170,8 @@ const COLOR_THEMES = {
       roman_hltds_deep:"#332288",
       act:             "#72190E",
       alfalfa:         "#AA4499",
+      boss_lowz:       "#882255",
+      boss_cmass:      "#CC6677",
     },
   },
   // Paul Tol 23-color Iridescent — sequential blue-to-plum
@@ -174,6 +192,8 @@ const COLOR_THEMES = {
       roman_hltds_deep:"#6B58A6",
       act:             "#4F3A65",
       alfalfa:         "#9C6B7C",
+      boss_lowz:       "#523365",
+      boss_cmass:      "#7E5485",
     },
   },
   // Paul Tol 23-color Discrete Rainbow — warm/sage emphasis
@@ -194,6 +214,8 @@ const COLOR_THEMES = {
       roman_hltds_deep:"#6A3D9A",
       act:             "#D1005A",
       alfalfa:         "#009988",
+      boss_lowz:       "#7D3C98",
+      boss_cmass:      "#BB6699",
     },
   },
 };
