@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-06 - v2.8.0 Find source (RA/Dec ring marker)
+
+### New Feature
+- **Find source** block in the sidebar Actions list, directly above "Upload catalog": two text boxes (RA, Dec), a **Find** button and a **Clear** button.
+  - Input formats: plain degrees (`187.7059`, `-0.5`) or sexagesimal (`12:30:49.4`, `12 30 49`, `12h30m49s`, `-00:30:00`, `+12°23'28"`). Sexagesimal RA is read as hours (x15) unless marked `d`/`°`; `12.5h` is decimal hours; Dec is always degrees. Ranges validated (RA 0-360 deg / 0-24 h, Dec +-90, minutes and seconds < 60); errors show inline and an existing marker is left untouched. Enter in either box triggers Find. The parsed result is echoed under the inputs in degrees.
+  - Draws one ring (fixed pixel size, so visible at any zoom) around the position in both map views. Electric blue `#0066FF` core (about 4.3:1 on black, 4.8:1 on white) between a white and a dark halo so it stays readable over any backdrop and in both UI themes.
+  - Aladin view pans and zooms to the source (FoV 1 deg); this also happens when Find is pressed in the equirectangular view, so the ring is already centred when switching back. The equirectangular view shows the ring only (no zoom).
+  - A new Find replaces the previous marker. **Clear** and **Reset** both remove the ring and empty the inputs. The marker is not persisted.
+- **Independent by design**: new state `state.findSource`, new SVG group `eq-findsource-group` (above the catalog group, outside the survey group), and an Aladin-side SVG overlay positioned each frame with `aladin.world2pix()`. It does not touch `state.selected`, `state.userMoc`, cross-match counting, the catalog layer or any MOC WASM object.
+  - The Aladin ring is deliberately DOM, not an Aladin layer: Aladin Lite v2 has no `removeLayer`, only `removeLayers()`, which wipes every catalog, overlay and MOC and is called by `refreshMOCLayers` and `resetSelections`. A layer-based marker would disappear on each survey toggle.
+  - EQ ring uses SVG presentation attributes (not CSS classes), so the PDF export keeps its styling unchanged.
+- Only existing-code edits: `VERSION`, a `findSourceGroup` entry in `state.eqMap` + group creation in `initEquirectangularMap`, one `initFindSource()` call in `init`, and one `clearFindSource()` call in `resetSelections`.
+
+### Documentation
+- Infographic: "Find source" row in the sidebar mock-up, a new **Find Source** feature card, Quick Start step 3 wording, a Technical Notes entry; hero badge and footer bumped 2.7.0 → 2.8.0.
+- `index.html`: stale `app.js?v=2.5.0` cache-bust query updated to `2.8.0`.
+
+### Version
+- App `VERSION` bumped 2.7.0 → 2.8.0; MOC-engine status pill now reads "MOC engine: ready (v2.8.0)".
+
+---
+
 ## 2026-05-19 - v2.7.0 SDSS-III BOSS DR12 LOWZ + CMASS footprints
 
 ### New Surveys

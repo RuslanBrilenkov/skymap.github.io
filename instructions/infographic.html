@@ -201,6 +201,29 @@
       color: var(--text);
     }
     .mock-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+    .mock-find { margin-bottom: 8px; }
+    .mock-find .mock-find-label { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+    .mock-find .mock-find-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 4px; }
+    .mock-find .mock-input {
+      padding: 4px 6px;
+      border-radius: 5px;
+      font-size: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .mock-find .mock-btn { margin-bottom: 0; }
+    .find-ring {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      border: 2px solid #0066FF;
+      box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0,0,0,0.6);
+      vertical-align: middle;
+      margin: 0 4px;
+    }
     .app-map-panel { background: #020408; position: relative; min-height: 380px; }
     .map-topbar {
       background: var(--surface);
@@ -528,7 +551,7 @@
 
   <!-- ── HERO ── -->
   <div class="hero">
-    <div class="hero-badge">v2.7.0 · Feature Guide</div>
+    <div class="hero-badge">v2.8.0 · Feature Guide</div>
     <h1>Survey Footprint Explorer</h1>
     <p>An interactive web app for visualizing astronomical survey footprints,
        comparing overlaps, and cross-matching source catalogs — all in your browser.</p>
@@ -554,7 +577,7 @@
     <div class="workflow-step" style="border-left:none">
       <div class="step-num">3</div>
       <h4>Explore the Map</h4>
-      <p>Rotate &amp; zoom in Aladin, or switch to Equirectangular for a full-sky flat view</p>
+      <p>Rotate &amp; zoom in Aladin, switch to Equirectangular for a full-sky flat view, or use "Find source" to mark an RA/Dec</p>
     </div>
     <div class="workflow-step" style="border-left:none">
       <div class="step-num">4</div>
@@ -594,6 +617,17 @@
 
       <div class="sidebar-section">
         <h4>Actions</h4>
+        <div class="mock-find">
+          <div class="mock-find-label">Find source</div>
+          <div class="mock-find-row">
+            <div class="mock-input">12:30:49.42</div>
+            <div class="mock-input">+12:23:28</div>
+          </div>
+          <div class="mock-find-row">
+            <div class="mock-btn primary">Find</div>
+            <div class="mock-btn">Clear</div>
+          </div>
+        </div>
         <div class="mock-btn">Upload catalog</div>
         <div class="mock-btn">Upload MOC</div>
         <div class="mock-btn primary">Download catalog</div>
@@ -686,7 +720,7 @@
     <div class="feature-card">
       <div class="feature-icon" style="background:#1a3820">☑️</div>
       <h3>Survey Selection</h3>
-      <p>Choose from <strong>13 built-in surveys</strong> via a dropdown with checkboxes. Reorder surveys to control draw layering. "Select all" available for quick comparison.</p>
+      <p>Choose from <strong>16 built-in surveys</strong> via a dropdown with checkboxes. Reorder surveys to control draw layering. "Select all" available for quick comparison.</p>
       <span class="tag tag-green">16 Surveys</span>
       <span class="tag tag-green">Drag to Reorder</span>
     </div>
@@ -705,6 +739,15 @@
       <p>Upload a <code>CSV</code> or <code>TSV</code> file with <code>ra</code>/<code>dec</code> columns. Sources are plotted on both maps. RA in hours is auto-detected and converted.</p>
       <span class="tag tag-orange">CSV / TSV</span>
       <span class="tag tag-orange">Local processing</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#10284a">🎯</div>
+      <h3>Find Source</h3>
+      <p>Type an <strong>RA and Dec</strong> in degrees or sexagesimal (<code>hh:mm:ss</code> / <code>±dd:mm:ss</code>) and press <strong>Find</strong>. An electric-blue ring <span class="find-ring"></span> marks the position in both views, readable on dark and light backgrounds. Aladin pans and zooms to the source.</p>
+      <span class="tag tag-blue">deg or hh:mm:ss</span>
+      <span class="tag tag-blue">Both map views</span>
+      <span class="tag tag-blue">Independent overlay</span>
     </div>
 
     <div class="feature-card">
@@ -1072,12 +1115,13 @@
   <div class="section-label">Technical Notes</div>
   <div class="note">All processing is fully <strong>client-side</strong> — no data is sent to any server. MOC intersection calculations use a compiled Rust/WebAssembly module (<code>moc-wasm</code>).</div>
   <div class="note">Survey footprints are stored as <strong>FITS MOC files</strong> (NUNIQ encoding, <code>pre_v2=True</code>) compatible with Aladin Lite v2. GeoJSON equivalents power the equirectangular overlays.</div>
+  <div class="note">The <strong>Find source</strong> ring is a standalone overlay: it does not take part in survey selection, cross-match counting, the uploaded catalog or the user MOC, and survey toggles never remove it. It is not saved between sessions; <strong>Clear</strong> or <strong>Reset</strong> removes it. RA given as <code>hh:mm:ss</code> is read as hours, a plain number as degrees.</div>
   <div class="note">The Roman HLWAS footprints are generated from the ROTAC-approved tiling plan (<code>hlwas_tiling_241206.txt.gz</code>). The survey has not launched; these are planning-stage footprints.</div>
   <div class="note">The Roman HLTDS footprints in this application are derived from the official STScI HLTDS survey definition and implemented here as a project-maintained pointing model based on the published field centers, tier structure, and pointing counts.</div>
 
   <!-- ── FOOTER ── -->
   <div class="footer">
-    Survey Footprint Explorer v2.7.0 &nbsp;·&nbsp;
+    Survey Footprint Explorer v2.8.0 &nbsp;·&nbsp;
     Surveys: Euclid, LSST, Roman HLWAS, Roman HLWAS Deep, Roman HLTDS, Roman HLTDS Deep, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1, ACT Legacy, ALFALFA, BOSS LOWZ, BOSS CMASS
     <div class="footer-copy">© 2026 S.L. Ahad &amp; R. Brilenkov</div>
   </div>

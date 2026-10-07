@@ -1,5 +1,5 @@
 // Version 2.7.0 - BOSS DR12 LOWZ + CMASS surveys added
-const VERSION = "2.7.0";
+const VERSION = "2.8.0";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -19,6 +19,18 @@ const CATALOG_UPLOAD_TOOLTIP_TEXT = 'Upload CSV/TSV with "ra" and "dec" columns.
 const DOWNLOAD_CATALOG_TOOLTIP_TEXT = "Download catalog with selected-survey overlap flags.";
 const TOOLTIP_CURSOR_OFFSET_PX = 14;
 const TOOLTIP_VIEWPORT_MARGIN_PX = 8;
+// "Find source" ring: electric blue core (>= 4.3:1 on both black and white)
+// between white and dark halos so it stays visible over any backdrop.
+const FIND_SOURCE_COLOR = "#0066FF";
+const FIND_SOURCE_RING_LAYERS = [
+  { stroke: "#000000", width: 6.5, opacity: 0.6 },
+  { stroke: "#FFFFFF", width: 4.5, opacity: 1 },
+  { stroke: FIND_SOURCE_COLOR, width: 2.5, opacity: 1 },
+];
+const FIND_SOURCE_ALADIN_RADIUS_PX = 12;
+const FIND_SOURCE_EQ_RADIUS_PX = 9;
+const FIND_SOURCE_ZOOM_FOV_DEG = 1;
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 const SURVEY_CONFIGS = [
   {
@@ -249,6 +261,7 @@ const state = {
     surveyGroup: null,
     overlayGroup: null,
     catalogGroup: null,
+    findSourceGroup: null,
     labelGroup: null,
     xScale: null,
     yScale: null,
@@ -266,6 +279,15 @@ const state = {
   catalogRawHeaders: [],
   catalogRawRows: [],
   catalogRowInfo: [],
+  // "Find source" marker: independent of surveys, catalog, user MOC and
+  // cross-match. Never persisted.
+  findSource: {
+    ra: null,           // degrees, null when no marker is shown
+    dec: null,
+    ringEl: null,       // Aladin-side SVG overlay (DOM, not an Aladin layer)
+    ringKey: "",        // last applied "x,y" so the rAF loop skips no-op writes
+    rafId: 0,
+  },
   userMoc: {
     selected: false,
     label: null,
@@ -315,6 +337,11 @@ const elements = {
   uploadMocInput: document.getElementById("upload-moc-input"),
   clearMocButton: document.getElementById("clear-moc-button"),
   downloadMapButton: document.getElementById("download-map-button"),
+  findRaInput: document.getElementById("find-ra"),
+  findDecInput: document.getElementById("find-dec"),
+  findSourceButton: document.getElementById("find-source-button"),
+  clearFindButton: document.getElementById("clear-find-button"),
+  findSourceStatus: document.getElementById("find-source-status"),
 };
 
 init();
@@ -537,6 +564,7 @@ async function init() {
   if (elements.downloadMapButton) {
     elements.downloadMapButton.addEventListener("click", handleMapDownload);
   }
+  initFindSource();
 
   // Cross-match toggle
   if (elements.crossMatchToggle) {
@@ -1977,6 +2005,7 @@ function resetSelections() {
   }
 
   clearCatalog({ silent: true });
+  clearFindSource({ clearInputs: true });
 
   // Uncheck all checkboxes
   const checkboxes = elements.surveyList.querySelectorAll("input[type=checkbox]");
@@ -2537,6 +2566,9 @@ function initEquirectangularMap() {
   state.eqMap.surveyGroup = g.append("g").attr("class", "eq-survey-group");
   state.eqMap.overlayGroup = g.append("g").attr("class", "eq-overlay-group");
   state.eqMap.catalogGroup = g.append("g").attr("class", "eq-catalog-group");
+  state.eqMap.findSourceGroup = g.append("g")
+    .attr("class", "eq-findsource-group")
+    .style("pointer-events", "none");
   state.eqMap.labelGroup = g.append("g").attr("class", "eq-label-group");
   state.eqMap.inMapLegendGroup = g.append("g").attr("class", "eq-in-map-legend-group");
 
@@ -2549,6 +2581,7 @@ function initEquirectangularMap() {
   drawEqGrid();
   drawEqGalacticPlane();
   drawEqEclipticPlane();
+  renderFindSourceEquirectangular();
 
   console.log("Equirectangular map initialized");
 }
@@ -3611,4 +3644,245 @@ function updateViewButtons() {
     const isActive = btn.dataset.view === state.activeView;
     btn.classList.toggle("is-active", isActive);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Find source: mark one RA/Dec position with a ring in both map views.
+// Self-contained: own state (state.findSource), own EQ group, and an Aladin
+// overlay that is plain DOM positioned with aladin.world2pix(). It is
+// deliberately NOT an Aladin layer: Aladin v2 only offers removeLayers(), which
+// refreshMOCLayers/resetSelections call and which wipes every catalog, overlay
+// and MOC, so a layer-based marker would vanish on each survey toggle.
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse one RA or Dec string into decimal degrees.
+ * Accepts plain degrees ("187.7059", "-0.5") or sexagesimal with ":", spaces or
+ * unit letters ("12:30:49.4", "12 30 49", "12h30m49s", "-00:30:00", "+12°23'28\"").
+ * Sexagesimal RA is read as hours (x15) unless marked with d/°; a lone number
+ * with an "h" suffix ("12.5h") is also hours. Dec is always degrees.
+ * Returns { value } (degrees) or { error }.
+ */
+function parseSkyCoordinate(text, kind) {
+  const isRa = kind === "ra";
+  const label = isRa ? "RA" : "Dec";
+  const raw = String(text == null ? "" : text).trim();
+  if (!raw) return { error: `Enter a ${label} value.` };
+
+  const sign = /^[-−]/.test(raw) ? -1 : 1;
+  const body = raw.replace(/^[-+−]/, "");
+  if (!/^[0-9hHdDmMsS°′″'":.\s]+$/.test(body)) {
+    return { error: `${label}: unrecognised characters.` };
+  }
+  if (/^:|:$|::/.test(body.trim())) return { error: `${label}: stray ":" separator.` };
+  const hasHourMark = /h/i.test(body);
+  const hasDegMark = /[d°]/i.test(body);
+  if (!isRa && hasHourMark) return { error: "Dec cannot be given in hours." };
+  if (hasHourMark && hasDegMark) return { error: `${label}: mixed h and d markers.` };
+
+  const tokens = body.replace(/[hHdDmMsS°′″'":\s]+/g, " ").trim().split(" ").filter(Boolean);
+  if (tokens.length === 0 || tokens.length > 3) {
+    return { error: `${label}: use a number or hh:mm:ss.` };
+  }
+  const numberRe = /^(\d+\.?\d*|\.\d+)$/;
+  if (!tokens.every((t) => numberRe.test(t))) {
+    return { error: `${label}: could not read "${raw}".` };
+  }
+  const parts = tokens.map(Number);
+  if (parts.slice(0, -1).some((n) => !Number.isInteger(n))) {
+    return { error: `${label}: only the last field may have decimals.` };
+  }
+  if (parts.length > 1 && parts.slice(1).some((n) => n >= 60)) {
+    return { error: `${label}: minutes and seconds must be below 60.` };
+  }
+
+  let value = parts[0] + (parts[1] || 0) / 60 + (parts[2] || 0) / 3600;
+  if (isRa) {
+    const inHours = hasHourMark || (parts.length > 1 && !hasDegMark);
+    if (inHours) {
+      if (value > 24) return { error: "RA must be between 0 and 24 h." };
+      value *= 15;
+    }
+    value *= sign;
+    if (value < 0 || value > 360) return { error: "RA must be between 0 and 360 deg." };
+    if (value === 360) value = 0;
+    return { value };
+  }
+  value *= sign;
+  if (value < -90 || value > 90) return { error: "Dec must be between -90 and +90 deg." };
+  return { value };
+}
+
+function initFindSource() {
+  const { findRaInput, findDecInput, findSourceButton, clearFindButton } = elements;
+  if (!findRaInput || !findDecInput || !findSourceButton) return;
+  findSourceButton.addEventListener("click", handleFindSource);
+  [findRaInput, findDecInput].forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleFindSource();
+      }
+    });
+    input.addEventListener("input", () => input.removeAttribute("aria-invalid"));
+  });
+  if (clearFindButton) {
+    clearFindButton.addEventListener("click", () => {
+      clearFindSource({ clearInputs: true });
+      logStatus("Find-source marker cleared.");
+    });
+  }
+}
+
+function setFindSourceStatus(message, isError = false) {
+  const el = elements.findSourceStatus;
+  if (!el) return;
+  el.textContent = message;
+  el.classList.toggle("is-error", isError);
+}
+
+function handleFindSource() {
+  const ra = parseSkyCoordinate(elements.findRaInput.value, "ra");
+  const dec = parseSkyCoordinate(elements.findDecInput.value, "dec");
+  elements.findRaInput.toggleAttribute("aria-invalid", Boolean(ra.error));
+  elements.findDecInput.toggleAttribute("aria-invalid", Boolean(dec.error));
+  if (ra.error || dec.error) {
+    // Leave any existing marker untouched; just report what to fix.
+    setFindSourceStatus([ra.error, dec.error].filter(Boolean).join(" "), true);
+    return;
+  }
+
+  const fs = state.findSource;
+  fs.ra = ra.value;
+  fs.dec = dec.value;
+  renderFindSourceEquirectangular();
+  showFindSourceAladin();
+  if (elements.clearFindButton) elements.clearFindButton.disabled = false;
+
+  const decText = `${dec.value >= 0 ? "+" : ""}${dec.value.toFixed(5)}`;
+  setFindSourceStatus(`RA ${ra.value.toFixed(5)}°  Dec ${decText}°`);
+  logStatus(`Marked source at RA ${ra.value.toFixed(5)}, Dec ${decText}.`);
+}
+
+function clearFindSource(options = {}) {
+  const { clearInputs = false } = options;
+  const fs = state.findSource;
+  fs.ra = null;
+  fs.dec = null;
+  fs.ringKey = "";
+  if (fs.rafId) {
+    cancelAnimationFrame(fs.rafId);
+    fs.rafId = 0;
+  }
+  if (fs.ringEl) fs.ringEl.style.display = "none";
+  renderFindSourceEquirectangular();
+  if (elements.clearFindButton) elements.clearFindButton.disabled = true;
+  setFindSourceStatus("");
+  if (clearInputs) {
+    [elements.findRaInput, elements.findDecInput].forEach((input) => {
+      if (!input) return;
+      input.value = "";
+      input.removeAttribute("aria-invalid");
+    });
+  }
+}
+
+function appendRingCircles(parent, cx, cy, r) {
+  FIND_SOURCE_RING_LAYERS.forEach((layer) => {
+    const circle = document.createElementNS(SVG_NS, "circle");
+    circle.setAttribute("cx", cx);
+    circle.setAttribute("cy", cy);
+    circle.setAttribute("r", r);
+    circle.setAttribute("fill", "none");
+    circle.setAttribute("stroke", layer.stroke);
+    circle.setAttribute("stroke-width", layer.width);
+    circle.setAttribute("stroke-opacity", layer.opacity);
+    parent.appendChild(circle);
+  });
+}
+
+// Equirectangular view. Presentation attributes (not CSS classes) so the PDF
+// export, which re-serialises the SVG, keeps the ring styling without changes.
+function renderFindSourceEquirectangular() {
+  const { initialized, findSourceGroup, xScale, yScale } = state.eqMap;
+  if (!initialized || !findSourceGroup) return;
+  findSourceGroup.selectAll("*").remove();
+  const { ra, dec } = state.findSource;
+  if (ra == null || dec == null) return;
+  appendRingCircles(findSourceGroup.node(), xScale(ra), yScale(dec), FIND_SOURCE_EQ_RADIUS_PX);
+}
+
+// Aladin view.
+function ensureFindSourceAladinRing() {
+  const fs = state.findSource;
+  const container = elements.aladinDiv;
+  if (!container) return null;
+  if (fs.ringEl && container.contains(fs.ringEl)) return fs.ringEl;
+
+  const size = 2 * (FIND_SOURCE_ALADIN_RADIUS_PX + 6);
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("class", "find-source-aladin-ring");
+  svg.setAttribute("width", size);
+  svg.setAttribute("height", size);
+  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+  svg.setAttribute("aria-hidden", "true");
+  appendRingCircles(svg, size / 2, size / 2, FIND_SOURCE_ALADIN_RADIUS_PX);
+  container.appendChild(svg);
+  fs.ringEl = svg;
+  fs.ringKey = "";
+  return svg;
+}
+
+function showFindSourceAladin() {
+  const fs = state.findSource;
+  if (!state.aladin || fs.ra == null) return;
+  ensureFindSourceAladinRing();
+  try {
+    // Centre on the source even if the equirectangular view is active, so the
+    // ring is already in view when the user switches back.
+    state.aladin.gotoRaDec(fs.ra, fs.dec);
+    state.aladin.setFov(FIND_SOURCE_ZOOM_FOV_DEG);
+  } catch (error) {
+    console.warn("Find source: Aladin pan/zoom failed:", error);
+  }
+  fs.ringKey = "";
+  if (!fs.rafId) fs.rafId = requestAnimationFrame(findSourceAladinTick);
+}
+
+// Runs every frame while a marker exists; a no-op unless the Aladin view is
+// visible and the projected position changed.
+function findSourceAladinTick() {
+  const fs = state.findSource;
+  fs.rafId = 0;
+  if (fs.ra == null) return;
+  if (state.activeView === "aladin") updateFindSourceAladinRing();
+  fs.rafId = requestAnimationFrame(findSourceAladinTick);
+}
+
+function updateFindSourceAladinRing() {
+  const fs = state.findSource;
+  const ring = fs.ringEl;
+  const view = state.aladin && state.aladin.view;
+  if (!ring || !view || typeof state.aladin.world2pix !== "function") return;
+
+  let pix = null;
+  try {
+    pix = state.aladin.world2pix(fs.ra, fs.dec);
+  } catch (error) {
+    pix = null;
+  }
+  const margin = FIND_SOURCE_ALADIN_RADIUS_PX + 6;
+  const visible = Array.isArray(pix) && Number.isFinite(pix[0]) && Number.isFinite(pix[1]) &&
+    pix[0] > -margin && pix[0] < view.width + margin &&
+    pix[1] > -margin && pix[1] < view.height + margin;
+
+  const key = visible ? `${pix[0].toFixed(1)},${pix[1].toFixed(1)}` : "hidden";
+  if (key === fs.ringKey) return;
+  fs.ringKey = key;
+  if (!visible) {
+    ring.style.display = "none";
+    return;
+  }
+  ring.style.display = "block";
+  ring.style.transform = `translate(${pix[0] - margin}px, ${pix[1] - margin}px)`;
 }

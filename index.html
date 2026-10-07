@@ -77,6 +77,22 @@
               <input type="checkbox" id="crossmatch-toggle" />
               <span>Show cross-match only</span>
             </label>
+            <div class="find-source" id="find-source">
+              <label class="find-source__label" for="find-ra">Find source</label>
+              <div class="find-source__inputs">
+                <input type="text" id="find-ra" class="find-source__input"
+                       placeholder="RA (deg or hh:mm:ss)" autocomplete="off" spellcheck="false"
+                       aria-label="Right ascension in degrees or hh:mm:ss" />
+                <input type="text" id="find-dec" class="find-source__input"
+                       placeholder="Dec (deg or ±dd:mm:ss)" autocomplete="off" spellcheck="false"
+                       aria-label="Declination in degrees or dd:mm:ss" />
+              </div>
+              <div class="find-source__buttons">
+                <button class="button" id="find-source-button" type="button">Find</button>
+                <button class="button secondary" id="clear-find-button" type="button" disabled>Clear</button>
+              </div>
+              <div class="find-source__status" id="find-source-status" aria-live="polite"></div>
+            </div>
             <button class="button secondary" id="upload-button">Upload catalog</button>
             <input type="file" id="upload-input" accept=".csv,.tsv,text/csv,text/tab-separated-values" hidden />
             <button class="button secondary" id="clear-catalog-button" disabled>Clear catalog</button>
@@ -183,6 +199,6 @@
           throw error;
         });
     </script>
-    <script type="module" src="app.js?v=2.5.0"></script>
+    <script type="module" src="app.js?v=2.8.0"></script>
   </body>
 </html>
