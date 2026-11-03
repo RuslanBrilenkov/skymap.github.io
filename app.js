@@ -1,5 +1,5 @@
-// Version 2.7.0 - BOSS DR12 LOWZ + CMASS surveys added
-const VERSION = "2.8.0";
+// Version 2.9.0 - Equirectangular is the default view; Aladin Lite loads on demand
+const VERSION = "2.9.0";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -15,6 +15,11 @@ const STORAGE_KEY = "sky-coverage-settings-v2";
 const PERSIST_KEY = "sky-coverage-persist-enabled";
 const UI_THEME_KEY = "sky-coverage-ui-theme";
 const ALADIN_VIEW_KEY = "sky-coverage-aladin-view";
+// Aladin Lite v2 is hosted by CDS (Strasbourg). It is loaded only when the
+// Aladin view is opened, so a CDS outage never affects the equirectangular map.
+const ALADIN_JS_URL = "https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.js";
+const ALADIN_CSS_URL = "https://aladin.cds.unistra.fr/AladinLite/api/v2/latest/aladin.min.css";
+const ALADIN_LOAD_TIMEOUT_MS = 15000;
 const CATALOG_UPLOAD_TOOLTIP_TEXT = 'Upload CSV/TSV with "ra" and "dec" columns.';
 const DOWNLOAD_CATALOG_TOOLTIP_TEXT = "Download catalog with selected-survey overlap flags.";
 const TOOLTIP_CURSOR_OFFSET_PX = 14;
@@ -251,7 +256,10 @@ const state = {
   isUpdatingCount: 0,
   activeTheme: "default",
   activeProjection: "SIN",
-  activeView: "aladin",  // "aladin" or "equirectangular"
+  activeView: "equirectangular",  // "aladin" or "equirectangular"; always starts equirectangular
+  aladinStatus: "idle",  // "idle" | "loading" | "ready" | "unavailable"
+  aladinLoader: null,    // in-flight Promise for the Aladin Lite script
+  aladinAttempt: 0,      // invalidates the timeout of superseded load attempts
   dragSurveyId: null,
   mocWasmFailed: false,
   // Equirectangular map state
@@ -326,6 +334,10 @@ const elements = {
   // View toggle elements
   viewBtns: document.querySelectorAll(".view-btn"),
   aladinDiv: document.getElementById("aladin-lite-div"),
+  aladinNotice: document.getElementById("aladin-notice"),
+  aladinNoticeTitle: document.getElementById("aladin-notice-title"),
+  aladinNoticeText: document.getElementById("aladin-notice-text"),
+  aladinRetryButton: document.getElementById("aladin-retry-button"),
   equirectDiv: document.getElementById("equirectangular-map"),
   aladinControls: document.getElementById("aladin-controls"),
   equirectControls: document.getElementById("equirect-controls"),
@@ -347,7 +359,7 @@ const elements = {
 init();
 
 async function init() {
-  elements.coverageLog.textContent = "Initializing Aladin Lite…";
+  elements.coverageLog.textContent = "Initializing…";
   const persistenceEnabled = restorePersistenceToggle();
   restoreUiTheme();
   if (persistenceEnabled) {
@@ -357,59 +369,13 @@ async function init() {
   renderLegend();
   logStatus("Survey list ready.");
 
-  // Wait for Aladin Lite v2 to be available
-  const aladinReady = await waitForAladin();
-  if (!aladinReady) {
-    elements.coverageLog.textContent =
-      "Failed to load Aladin Lite. Check network access or retry.";
-    elements.mapStatus.textContent = "Error";
-    elements.mapStatus.classList.add("map-status--error");
-    showToast("Failed to load Aladin Lite. Check your network connection.", "error", "aladin-init", 0);
-    return;
-  }
-
-  try {
-    localStorage.removeItem(ALADIN_VIEW_KEY);
-    // Aladin Lite v2 initialization
-    state.aladin = window.A.aladin("#aladin-lite-div", {
-      survey: "P/DSS2/color",
-      fov: 180,
-      target: "0 +0",
-      showReticle: true,
-      showZoomControl: true,
-      showFullscreenControl: true,
-      showLayersControl: true,
-      showGotoControl: true,
-    });
-
-    state.aladinLibrary = window.A;
-    addAnchorLayer();
-    // Aladin view persistence disabled: always reset on refresh.
-  } catch (error) {
-    console.error("Failed to initialize Aladin:", error);
-    elements.coverageLog.textContent = `Failed to initialize Aladin: ${error.message}`;
-    elements.mapStatus.textContent = "Error";
-    elements.mapStatus.classList.add("map-status--error");
-    showToast(`Failed to initialize Aladin: ${error.message}`, "error", "aladin-init", 0);
-    return;
-  }
-
+  // Nothing here waits for Aladin Lite: it is created on demand by
+  // ensureAladin() the first time the Aladin view is opened.
   elements.mapStatus.textContent = "Map ready";
   elements.coverageLog.textContent = "Select a survey to load its MOC.";
   elements.mocStatus.textContent = `MOC engine: ready (v${VERSION})`;
   logStatus("Application ready.");
   console.log(`Survey Footprint Explorer v${VERSION} initialized`);
-
-  // Apply restored projection if different from default
-  if (state.activeProjection !== "SIN") {
-    try {
-      state.aladin.setProjection(state.activeProjection);
-      console.log(`Restored projection: ${state.activeProjection}`);
-    } catch (error) {
-      console.warn("Failed to restore projection:", error);
-      state.activeProjection = "SIN";
-    }
-  }
 
   updateStats();
   renderLegend();
@@ -583,6 +549,9 @@ async function init() {
     });
     updateViewButtons();
   }
+  if (elements.aladinRetryButton) {
+    elements.aladinRetryButton.addEventListener("click", ensureAladin);
+  }
 
   // Equirectangular map controls
   if (elements.showGrid) {
@@ -612,12 +581,9 @@ async function init() {
   // Initialize equirectangular map
   initEquirectangularMap();
 
-  // Apply restored view and load surveys
-  if (state.activeView !== "aladin") {
-    setActiveView(state.activeView);
-  } else if (state.selected.size > 0) {
-    scheduleRefreshMOCLayers();
-  }
+  // Always start in the equirectangular view (it uses only our own MOC files)
+  // and load the restored surveys there. Aladin is opt-in via the view toggle.
+  setActiveView("equirectangular", { quiet: true });
 
   if (state.crossMatchOnly && state.selected.size >= 2) {
     enterCrossMatchMode();
@@ -637,23 +603,189 @@ async function init() {
   updateDownloadControls();
 }
 
-async function waitForAladin() {
-  // Wait for jQuery and Aladin Lite v2 to be available
-  const maxAttempts = 50;
-  const delayMs = 100;
+// ---------------------------------------------------------------------------
+// Aladin Lite: optional, loaded on demand from CDS. The equirectangular view
+// never depends on anything here. Survey selections, cross-match, catalog and
+// Find source made before Aladin exists are applied by syncAladinView() once
+// it is created.
+// ---------------------------------------------------------------------------
 
-  for (let i = 0; i < maxAttempts; i++) {
-    if (typeof window.A !== 'undefined' &&
-        typeof window.A.aladin === 'function' &&
-        typeof jQuery !== 'undefined') {
-      console.log("Aladin Lite v2 loaded successfully");
-      return true;
-    }
-    await new Promise(resolve => setTimeout(resolve, delayMs));
+function isAladinLibraryLoaded() {
+  return typeof window.A !== "undefined" && typeof window.A.aladin === "function";
+}
+
+// Inject the Aladin script + stylesheet once. Resolves when window.A is usable.
+// A hard failure (network error) clears the loader so the next attempt retries;
+// a request that simply hangs stays in flight and may still resolve later.
+function loadAladinLibrary() {
+  if (isAladinLibraryLoaded()) return Promise.resolve();
+  if (state.aladinLoader) return state.aladinLoader;
+
+  if (!document.querySelector(`link[href="${ALADIN_CSS_URL}"]`)) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = ALADIN_CSS_URL;
+    document.head.appendChild(link);
   }
 
-  console.error("Aladin Lite failed to load after", maxAttempts * delayMs, "ms");
-  return false;
+  const script = document.createElement("script");
+  const loader = new Promise((resolve, reject) => {
+    if (typeof jQuery === "undefined") {
+      reject(new Error("jQuery (required by Aladin Lite) is not loaded."));
+      return;
+    }
+    script.src = ALADIN_JS_URL;
+    script.charset = "utf-8";
+    script.async = true;
+    script.onload = () => {
+      if (isAladinLibraryLoaded()) {
+        console.log("Aladin Lite v2 loaded successfully");
+        resolve();
+      } else {
+        reject(new Error("Aladin Lite script loaded but its API is missing."));
+      }
+    };
+    script.onerror = () => reject(new Error("Aladin Lite script failed to load."));
+    document.head.appendChild(script);
+  });
+  loader.catch(() => {
+    if (state.aladinLoader === loader) state.aladinLoader = null;
+    script.remove();
+  });
+  state.aladinLoader = loader;
+  return loader;
+}
+
+// Called whenever the Aladin view is opened (and by the "Try again" button).
+function ensureAladin() {
+  if (state.aladin || state.aladinStatus === "loading") return;
+
+  state.aladinStatus = "loading";
+  const attempt = ++state.aladinAttempt;
+  renderAladinNotice();
+
+  const timer = setTimeout(() => {
+    if (attempt === state.aladinAttempt && !state.aladin) {
+      markAladinUnavailable(new Error(`No response from CDS after ${ALADIN_LOAD_TIMEOUT_MS / 1000} s.`));
+    }
+  }, ALADIN_LOAD_TIMEOUT_MS);
+
+  loadAladinLibrary()
+    .then(() => {
+      clearTimeout(timer);
+      if (state.aladin) return;
+      // Aladin must be created in a visible container; if the user has left
+      // the Aladin view, create it on the next visit instead.
+      if (state.activeView !== "aladin") {
+        state.aladinStatus = "idle";
+        renderAladinNotice();
+        return;
+      }
+      createAladin();
+    })
+    .catch((error) => {
+      clearTimeout(timer);
+      if (attempt === state.aladinAttempt && !state.aladin) {
+        markAladinUnavailable(error);
+      }
+    });
+}
+
+function createAladin() {
+  try {
+    localStorage.removeItem(ALADIN_VIEW_KEY);
+  } catch (error) {
+    // Storage may be blocked (e.g. in a sandboxed embed); view persistence is off anyway.
+  }
+
+  try {
+    state.aladin = window.A.aladin("#aladin-lite-div", {
+      survey: "P/DSS2/color",
+      fov: 180,
+      target: "0 +0",
+      showReticle: true,
+      showZoomControl: true,
+      showFullscreenControl: true,
+      showLayersControl: true,
+      showGotoControl: true,
+    });
+
+    state.aladinLibrary = window.A;
+    addAnchorLayer();
+    // Aladin view persistence disabled: always reset on refresh.
+  } catch (error) {
+    state.aladin = null;
+    markAladinUnavailable(error);
+    return;
+  }
+
+  state.aladinStatus = "ready";
+  renderAladinNotice();
+
+  // Apply restored projection if different from default
+  if (state.activeProjection !== "SIN") {
+    try {
+      state.aladin.setProjection(state.activeProjection);
+      console.log(`Restored projection: ${state.activeProjection}`);
+    } catch (error) {
+      console.warn("Failed to restore projection:", error);
+      state.activeProjection = "SIN";
+    }
+  }
+
+  syncAladinView();
+  // A source found before Aladin existed: pan to it and start the ring.
+  if (state.findSource.ra != null) {
+    showFindSourceAladin();
+  }
+  logStatus("Aladin Lite ready.");
+}
+
+function markAladinUnavailable(error) {
+  console.error("Aladin Lite unavailable:", error);
+  state.aladinStatus = "unavailable";
+  renderAladinNotice();
+  // Survey items may have been marked as loading while waiting for Aladin.
+  clearSurveyLoadingState();
+  if (state.activeView === "aladin") {
+    showToast(
+      "Aladin Lite is temporarily unavailable. The equirectangular map still works.",
+      "error",
+      "aladin-init",
+      5000
+    );
+    logStatus("Aladin Lite is temporarily unavailable.");
+  }
+}
+
+// Loading / error panel over the Aladin area; hidden once Aladin exists or
+// whenever the equirectangular view is active.
+function renderAladinNotice() {
+  const notice = elements.aladinNotice;
+  if (!notice) return;
+  const visible = state.activeView === "aladin" && !state.aladin;
+  notice.hidden = !visible;
+  if (!visible) return;
+
+  const unavailable = state.aladinStatus === "unavailable";
+  notice.classList.toggle("is-error", unavailable);
+  elements.aladinNoticeTitle.textContent = unavailable
+    ? "Aladin Lite is temporarily unavailable"
+    : "Loading Aladin Lite…";
+  elements.aladinNoticeText.textContent = unavailable
+    ? "The Aladin Lite service (CDS, Strasbourg) is not responding. All tools keep " +
+      "working in the Equirectangular view, which uses our own survey footprints. " +
+      "Your selections will appear here once Aladin is back."
+    : "Fetching the interactive sky viewer from CDS.";
+  if (elements.aladinRetryButton) {
+    elements.aladinRetryButton.hidden = !unavailable;
+  }
+}
+
+function clearSurveyLoadingState() {
+  elements.surveyList.querySelectorAll(".survey-item.is-loading").forEach(
+    (el) => el.classList.remove("is-loading")
+  );
 }
 
 function toggleDropdown(open) {
@@ -1160,6 +1292,9 @@ function handleSurveyToggle(survey, isChecked) {
 
 function addSurveyLayer(survey) {
   if (!state.aladin) {
+    // Aladin still loading or unavailable: the selection is kept and drawn by
+    // syncAladinView() once Aladin exists; don't leave the item pulsing.
+    clearSurveyLoadingState();
     return;
   }
   try {
@@ -1278,6 +1413,7 @@ function scheduleRefreshMOCLayers() {
 function refreshMOCLayers() {
   if (!state.aladin) {
     console.warn("Aladin not ready");
+    clearSurveyLoadingState();
     return;
   }
 
@@ -2190,9 +2326,8 @@ function restoreSettings() {
         state.activeProjection = data.projection;
       }
     }
-    if (data.view && (data.view === "aladin" || data.view === "equirectangular")) {
-      state.activeView = data.view;
-    }
+    // data.view is still saved but no longer restored: the app always starts
+    // in the equirectangular view, and Aladin is opened on request.
     if (Array.isArray(data.order)) {
       const ordered = [];
       data.order.forEach((id) => {
@@ -3525,6 +3660,9 @@ async function handleMocUpload(file) {
     renderSurveyList();
     renderLegend();
     if (state.crossMatchOnly && state.selected.size + 1 >= 2) {
+      // Render order contract (see refreshEqMapSurveys): draw the user MOC
+      // raster before the cross-match overlay, which greys it out and sits on top.
+      await renderUserMocOnEqMap();
       await enterCrossMatchMode();
     } else {
       refreshMOCLayers();
@@ -3590,7 +3728,29 @@ async function renderUserMocOnEqMap() {
   });
 }
 
-function setActiveView(view) {
+// Bring a live Aladin instance in line with the current selection, cross-match
+// and catalog (on every switch to the Aladin view, and right after creation).
+function syncAladinView() {
+  if (!state.aladin) return;
+  // Refresh MOC layers to sync with current selection
+  if (state.selected.size > 0 || state.userMoc.selected) {
+    const totalForCrossMatch = state.selected.size +
+      (state.userMoc.selected && state.userMoc.mocInstance ? 1 : 0);
+    if (state.crossMatchOnly && totalForCrossMatch >= 2 && state.intersectionBlobUrl) {
+      // In cross-match mode, use applyCrossMatchAladin which calls refreshMOCLayers internally
+      applyCrossMatchAladin();
+    } else {
+      scheduleRefreshMOCLayers();
+    }
+  } else {
+    forceAladinRedraw();
+  }
+  if (state.catalogPoints.length > 0) {
+    renderCatalogAladin();
+  }
+}
+
+function setActiveView(view, { quiet = false } = {}) {
   if (view !== "aladin" && view !== "equirectangular") return;
 
   state.activeView = view;
@@ -3602,22 +3762,14 @@ function setActiveView(view) {
     elements.equirectControls.style.display = "none";
     elements.aladinControls.style.display = "flex";
     elements.mapTitle.textContent = "Aladin Lite V2";
-    // Refresh MOC layers to sync with current selection
-    if (state.selected.size > 0 || state.userMoc.selected) {
-      const totalForCrossMatch = state.selected.size +
-        (state.userMoc.selected && state.userMoc.mocInstance ? 1 : 0);
-      if (state.crossMatchOnly && totalForCrossMatch >= 2 && state.intersectionBlobUrl) {
-        // In cross-match mode, use applyCrossMatchAladin which calls refreshMOCLayers internally
-        applyCrossMatchAladin();
-      } else {
-        scheduleRefreshMOCLayers();
-      }
+    if (state.aladin) {
+      syncAladinView();
     } else {
-      forceAladinRedraw();
+      // First visit (or CDS was down): load Aladin now; syncAladinView()
+      // runs once it is created.
+      ensureAladin();
     }
-    if (state.catalogPoints.length > 0) {
-      renderCatalogAladin();
-    }
+    renderAladinNotice();
   } else {
     elements.aladinDiv.style.display = "none";
     elements.equirectDiv.style.display = "block";
@@ -3633,10 +3785,13 @@ function setActiveView(view) {
     if (state.catalogPoints.length > 0) {
       renderCatalogEquirectangular();
     }
+    renderAladinNotice();
   }
 
   persistSettings();
-  logStatus(`Switched to ${view === "aladin" ? "Aladin Lite" : "Equirectangular"} view.`);
+  if (!quiet) {
+    logStatus(`Switched to ${view === "aladin" ? "Aladin Lite" : "Equirectangular"} view.`);
+  }
 }
 
 function updateViewButtons() {

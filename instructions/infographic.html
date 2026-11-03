@@ -551,7 +551,7 @@
 
   <!-- ── HERO ── -->
   <div class="hero">
-    <div class="hero-badge">v2.8.0 · Feature Guide</div>
+    <div class="hero-badge">v2.9.0 · Feature Guide</div>
     <h1>Survey Footprint Explorer</h1>
     <p>An interactive web app for visualizing astronomical survey footprints,
        comparing overlaps, and cross-matching source catalogs — all in your browser.</p>
@@ -577,7 +577,7 @@
     <div class="workflow-step" style="border-left:none">
       <div class="step-num">3</div>
       <h4>Explore the Map</h4>
-      <p>Rotate &amp; zoom in Aladin, switch to Equirectangular for a full-sky flat view, or use "Find source" to mark an RA/Dec</p>
+      <p>The full-sky Equirectangular map opens by default; switch to Aladin to rotate &amp; zoom a globe, or use "Find source" to mark an RA/Dec</p>
     </div>
     <div class="workflow-step" style="border-left:none">
       <div class="step-num">4</div>
@@ -712,7 +712,7 @@
     <div class="feature-card">
       <div class="feature-icon" style="background:#1a2a50">🗺️</div>
       <h3>Dual Map Views</h3>
-      <p>Switch between an interactive <strong>Aladin Lite globe</strong> for sky navigation and an <strong>Equirectangular projection</strong> with RA/Dec grid for flat-map analysis.</p>
+      <p>Start in the <strong>Equirectangular projection</strong> with RA/Dec grid for flat-map analysis, or switch to an interactive <strong>Aladin Lite globe</strong> for sky navigation.</p>
       <span class="tag tag-blue">Aladin v2</span>
       <span class="tag tag-blue">D3.js EQ Map</span>
     </div>
@@ -940,7 +940,7 @@
     <div class="view-card">
       <div class="view-header">
         🌍 Aladin View (Globe)
-        <span class="tag tag-blue" style="margin-left:auto">Default</span>
+        <span class="tag tag-blue" style="margin-left:auto">Optional</span>
       </div>
       <div class="view-body">
         <div class="globe-preview">
@@ -962,6 +962,7 @@
           <li>Legend bar displayed at the bottom of the map</li>
           <li>Catalog sources plotted as colored circles</li>
           <li>Supports any Aladin sky survey background</li>
+          <li>Loads on demand from the CDS servers; if CDS is down, a notice appears and everything keeps working in the Equirectangular view</li>
         </ul>
       </div>
     </div>
@@ -969,6 +970,7 @@
     <div class="view-card">
       <div class="view-header">
         🗺️ Equirectangular View (Flat)
+        <span class="tag tag-blue" style="margin-left:auto">Default</span>
       </div>
       <div class="view-body">
         <div class="eq-preview" style="height:130px">
@@ -1121,7 +1123,7 @@
 
   <!-- ── FOOTER ── -->
   <div class="footer">
-    Survey Footprint Explorer v2.8.0 &nbsp;·&nbsp;
+    Survey Footprint Explorer v2.9.0 &nbsp;·&nbsp;
     Surveys: Euclid, LSST, Roman HLWAS, Roman HLWAS Deep, Roman HLTDS, Roman HLTDS Deep, DESI Legacy, DES, HSC, KiDS, UNIONS, eRASS1, ACT Legacy, ALFALFA, BOSS LOWZ, BOSS CMASS
     <div class="footer-copy">© 2026 S.L. Ahad &amp; R. Brilenkov</div>
   </div>

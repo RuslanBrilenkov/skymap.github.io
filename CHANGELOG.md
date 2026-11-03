@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-11-02 - v2.9.0 Equirectangular by default, Aladin Lite on demand
+
+### Fix: app dead during the CDS outage
+- The Aladin Lite v2 script and CSS were loaded synchronously in `<head>` from `aladin.cds.unistra.fr`. When CDS stopped responding (servers unreachable worldwide, Nov 2026), the browser stalled on that request, `app.js` (a deferred module) never ran until the request timed out, and `init()` then returned early on "Failed to load Aladin Lite". Nothing after that point was set up, including the equirectangular map, which does not need Aladin.
+
+### Changes
+- **Equirectangular is the default view** and always the start view. The saved `view` setting is still written but no longer restored, so a session that ended in Aladin reopens in the equirectangular map with its surveys, cross-match and catalog.
+- **Aladin Lite is optional and loads on demand.** The `<script>` and `<link>` tags were removed from `index.html`; `loadAladinLibrary()` injects them the first time the Aladin view is opened. jQuery stays in `<head>` since Aladin v2 needs it.
+- `init()` no longer waits for Aladin. Aladin setup moved to `createAladin()` (instance, anchor layer, restored projection), driven by `ensureAladin()` from `setActiveView("aladin")`. Selections, cross-match, catalog and a Find-source position made before Aladin exists are applied by the new `syncAladinView()` (the old Aladin branch of `setActiveView`) once it is created.
+- **"Temporarily unavailable" notice.** While loading, the Aladin area shows "Loading Aladin Lite…". If the script fails or CDS does not answer within 15 s (`ALADIN_LOAD_TIMEOUT_MS`), it shows "Aladin Lite is temporarily unavailable" with a **Try again** button, plus an error toast. A network failure clears the loader so a retry re-requests the script; a request that only hangs stays in flight and Aladin is created if it arrives later.
+- `addSurveyLayer` / `refreshMOCLayers` now clear the survey items' loading pulse when Aladin is absent (previously they could stay pulsing).
+
+### Fix: user MOC uploaded while cross-match is on
+- Uploading a MOC with "Show cross-match only" already on drew the intersection highlight but never the uploaded footprint itself on the equirectangular map (bug present since the user-MOC feature; unticking and re-ticking the MOC was the only way to show it). `handleMocUpload` now calls `renderUserMocOnEqMap()` before `enterCrossMatchMode()`, following the render-order contract (surveys → user MOC raster → cross-match overlay), so the raster appears greyed out under the highlight. Verified: same result as the untick/re-tick path; re-upload, untick/re-tick and cross-match off unchanged.
+- `index.html`: view toggle order is now Equirectangular | Aladin; `styles.css` and `app.js` cache-bust queries set to `2.9.0`.
+
+### Notes
+- With Aladin back, its DSS2 background tiles still come from CDS. During an outage the Aladin view stays unavailable; all other features work in the equirectangular view.
+- Tested in Chrome (Playwright) with CDS hanging, refusing, slow (8 s) and normal, and inside a sandboxed iframe like the Google Sites embed: 123/123 checks passed (surveys, cross-match, catalog, user MOC, Find source, overlay toggles, PDF export, theme, Reset, persistence, view switching, no stuck loading state).
+
+### Documentation
+- Infographic: "Default" tag moved from the Aladin card to the Equirectangular card (Aladin now "Optional"), a line about on-demand loading from CDS, Quick Start and view-toggle wording; hero badge and footer 2.8.0 → 2.9.0.
+
+### Version
+- App `VERSION` bumped 2.8.0 → 2.9.0.
+
+---
+
 ## 2026-10-06 - v2.8.0 Find source (RA/Dec ring marker)
 
 ### New Feature
