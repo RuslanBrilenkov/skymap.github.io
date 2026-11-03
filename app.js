@@ -1,5 +1,5 @@
-// Version 2.9.0 - Equirectangular is the default view; Aladin Lite loads on demand
-const VERSION = "2.9.0";
+// Version 2.9.1 - Restore the 2:1 equirectangular map size
+const VERSION = "2.9.1";
 const FULL_SKY_AREA_SQ_DEG = 41252.96;
 const LOCAL_MOC_URL = "./surveys/";
 const REMOTE_MOC_URL =
@@ -2659,10 +2659,12 @@ function initEquirectangularMap() {
   const container = elements.equirectDiv;
   if (!container) return;
 
-  // Get container dimensions
-  const rect = container.getBoundingClientRect();
-  const width = rect.width || 1200;
-  const height = rect.height || 600;
+  // Fixed 2:1 drawing size (RA 360 deg x Dec 180 deg); the viewBox scales it to
+  // the panel. Up to v2.8.0 the map was built while hidden, so the container
+  // measured 0x0 and these values were always used. Measuring the now-visible
+  // container instead would squash the map to the panel's aspect ratio.
+  const width = 1200;
+  const height = 600;
 
   const margin = { top: 40, right: 50, bottom: 50, left: 60 };
   const innerWidth = width - margin.left - margin.right;

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-03 - v2.9.1 Restore 2:1 equirectangular map
+
+### Fix
+- v2.9.0 made the equirectangular map look too square. `initEquirectangularMap()` sized the SVG viewBox from its container and fell back to 1200×600 when the container measured 0. Up to v2.8.0 the map was always built while hidden behind the Aladin view, so the fallback (2:1, matching 360° RA × 180° Dec) was always used. With the equirectangular view visible at startup in v2.9.0, it measured the panel instead and took the panel's aspect ratio. The size is now fixed at 1200×600, as before.
+
+### Version
+- App `VERSION` 2.9.0 → 2.9.1; `app.js` cache-bust query and infographic hero badge/footer updated.
+
+---
+
 ## 2026-11-02 - v2.9.0 Equirectangular by default, Aladin Lite on demand
 
 ### Fix: app dead during the CDS outage
